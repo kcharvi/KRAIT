@@ -1,0 +1,38 @@
+---
+title: "Convolution 2D"
+description: "Implement an efficient 2D convolution kernel for image processing applications."
+requirements:
+    - "Support different padding modes"
+    - "Optimize for various kernel sizes"
+    - "Handle batch processing efficiently"
+---
+
+# Convolution 2D
+
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class Convolution2D(nn.Module):
+    """
+    2D Convolution kernel with custom implementation
+    """
+    def __init__(self, in_channels, out_channels, kernel_size):
+        super().__init__()
+        self.weight = nn.Parameter(torch.randn(out_channels, in_channels, kernel_size, kernel_size))
+        self.bias = nn.Parameter(torch.randn(out_channels))
+
+    def forward(self, x):
+        return F.conv2d(x, self.weight, self.bias)
+```
+
+## Problem Description
+
+Implement an efficient 2D convolution kernel for image processing applications.
+
+## Requirements
+
+-   Support different padding modes
+-   Optimize for various kernel sizes
+-   Handle batch processing efficiently

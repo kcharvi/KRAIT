@@ -1,0 +1,40 @@
+---
+title: "Reduction Operations"
+description: "Implement efficient reduction operations for large tensors."
+requirements:
+    - "Support different reduction dimensions"
+    - "Optimize memory usage for large tensors"
+    - "Handle numerical stability for mean operations"
+---
+
+# Reduction Operations
+
+```python
+import torch
+
+class ReductionKernel:
+    """
+    Various reduction operations (sum, mean, max, min)
+    """
+    def __init__(self):
+        pass
+
+    def sum_reduce(self, x, dim=None):
+        return torch.sum(x, dim=dim)
+
+    def mean_reduce(self, x, dim=None):
+        return torch.mean(x, dim=dim)
+
+    def max_reduce(self, x, dim=None):
+        return torch.max(x, dim=dim)
+```
+
+## Problem Description
+
+Implement efficient reduction operations for large tensors.
+
+## Requirements
+
+-   Support different reduction dimensions
+-   Optimize memory usage for large tensors
+-   Handle numerical stability for mean operations

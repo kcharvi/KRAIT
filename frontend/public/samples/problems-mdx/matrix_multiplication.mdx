@@ -1,0 +1,35 @@
+---
+title: "Matrix Multiplication"
+description: "Implement an efficient matrix multiplication kernel that computes C = A * B where A is (M, K) and B is (K, N)."
+requirements:
+    - "Support different data types (float32, float16)"
+    - "Optimize for GPU memory access patterns"
+    - "Handle edge cases (zero dimensions, etc.)"
+---
+
+# Matrix Multiplication
+
+```python
+import torch
+import torch.nn as nn
+
+class MatrixMultiplication(nn.Module):
+    """
+    Standard matrix multiplication kernel (C = A * B)
+    """
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, A, B):
+        return torch.matmul(A, B)
+```
+
+## Problem Description
+
+Implement an efficient matrix multiplication kernel that computes C = A \* B where A is (M, K) and B is (K, N).
+
+## Requirements
+
+-   Support different data types (float32, float16)
+-   Optimize for GPU memory access patterns
+-   Handle edge cases (zero dimensions, etc.)
