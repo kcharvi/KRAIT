@@ -344,45 +344,47 @@ export default function MetricsDashboard({ data, onExport }: MetricsDashboardPro
     const renderTable = () => <MetricsTable data={data} onExport={onExport} />;
 
     return (
-        <div className="h-full bg-gray-50 p-6">
-            <div className="max-w-7xl mx-auto space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-gray-900">KRAIT Analysis Dashboard</h2>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <span>Last updated: {new Date().toLocaleString()}</span>
+        <div className="h-full bg-gray-50 overflow-hidden">
+            <div className="h-full overflow-y-auto p-6">
+                <div className="max-w-7xl mx-auto space-y-6">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-2xl font-bold text-gray-900">Analysis Dashboard</h2>
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <span>Last updated: {new Date().toLocaleString()}</span>
+                        </div>
                     </div>
-                </div>
 
-                {/* Tabs */}
-                <div className="border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-8">
-                        {[
-                            { id: "overview", label: "Overview", icon: BarChart3 },
-                            { id: "charts", label: "Charts", icon: TrendingUp },
-                            { id: "table", label: "Table", icon: Cpu },
-                        ].map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setSelectedTab(tab.id as any)}
-                                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                                    selectedTab === tab.id
-                                        ? "border-primary-500 text-primary-600"
-                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                }`}
-                            >
-                                <tab.icon className="w-4 h-4" />
-                                {tab.label}
-                            </button>
-                        ))}
-                    </nav>
-                </div>
+                    {/* Tabs */}
+                    <div className="border-b border-gray-200">
+                        <nav className="-mb-px flex space-x-8">
+                            {[
+                                { id: "overview", label: "Overview", icon: BarChart3 },
+                                { id: "charts", label: "Charts", icon: TrendingUp },
+                                { id: "table", label: "Table", icon: Cpu },
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setSelectedTab(tab.id as any)}
+                                    className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
+                                        selectedTab === tab.id
+                                            ? "border-primary-500 text-primary-600"
+                                            : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                    }`}
+                                >
+                                    <tab.icon className="w-4 h-4" />
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
 
-                {/* Content */}
-                <div className="min-h-96">
-                    {selectedTab === "overview" && renderOverview()}
-                    {selectedTab === "charts" && renderCharts()}
-                    {selectedTab === "table" && renderTable()}
+                    {/* Content */}
+                    <div className="min-h-96">
+                        {selectedTab === "overview" && renderOverview()}
+                        {selectedTab === "charts" && renderCharts()}
+                        {selectedTab === "table" && renderTable()}
+                    </div>
                 </div>
             </div>
         </div>

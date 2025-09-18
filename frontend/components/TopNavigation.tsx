@@ -19,17 +19,17 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
             description: "Generate and analyze kernel code",
         },
         {
-            id: "visualizations",
-            name: "Visualizations",
-            icon: BarChart3,
-            description: "Performance charts and graphs",
-        },
-        {
             id: "metrics",
             name: "Metrics",
             icon: Settings,
             description: "Detailed metrics and analytics",
         },
+        {
+            id: "visualizations",
+            name: "Visualizations",
+            icon: BarChart3,
+            description: "Performance charts and graphs",
+        },        
     ];
 
     const activeTabData = tabs.find((tab) => tab.id === activeTab);
@@ -41,7 +41,9 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
                     {/* Logo/Brand */}
                     <div className="flex items-center">
                         <div className="flex-shrink-0 flex items-center">
-                            <Cpu className="h-8 w-8 text-blue-600" />
+                            <div className="h-8 w-8 flex items-center justify-center bg-blue-600 text-white rounded">
+                                <span className="font-bold text-lg">⛎</span>
+                            </div>
                             <span className="ml-2 text-xl font-bold text-gray-900">KRAIT</span>
                         </div>
                     </div>

@@ -350,7 +350,7 @@ export default function CriticPanel({
             <div className="h-full flex flex-col bg-white overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
-                    <h3 className="text-lg font-semibold text-gray-900">KRAIT Analysis Engine</h3>
+                    <h3 className="text-sm font-semibold text-gray-900">Critic and Analysis </h3>
                 </div>
 
                 {/* Content */}
@@ -388,11 +388,11 @@ export default function CriticPanel({
     }
 
     return (
-        <div className="h-full flex flex-col bg-white overflow-hidden">
+        <div className="h-full flex flex-col bg-white overflow-hidden min-h-0">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                 <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-gray-900">KRAIT Analysis Engine</h3>
+                    <h3 className="text-lg font-semibold text-gray-900">Critic and Analysis </h3>
                     <div
                         className={`px-2 py-1 text-xs rounded-full ${getCorrectnessStatusColor(
                             analysisResult.correctness.status
@@ -420,7 +420,7 @@ export default function CriticPanel({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto scrollbar-hide">
+            <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0">
                 {/* Overview Section */}
                 <div className="border-b border-gray-200">
                     <button
@@ -517,7 +517,6 @@ export default function CriticPanel({
                                                 issue.message.trim() !== ""
                                         )
                                         .map((issue, index) => {
-                                            console.log(`Issue ${index}:`, issue);
                                             return (
                                                 <div
                                                     key={index}
@@ -552,20 +551,8 @@ export default function CriticPanel({
                                     </div>
                                 ) : null}
                                 {analysisResult.correctness.checks.map((check, idx) => {
-                                    console.log("Rendering check:", check);
-                                    console.log(`Check ${check.name} details:`, check.details);
-                                    console.log(
-                                        `Check ${check.name} details type:`,
-                                        typeof check.details
-                                    );
-                                    console.log(
-                                        `Check ${check.name} details keys:`,
-                                        check.details ? Object.keys(check.details) : "null"
-                                    );
-
                                     // Skip rendering if check has no meaningful content
                                     if (!check.details || Object.keys(check.details).length === 0) {
-                                        console.log(`Skipping check ${check.name} - no details`);
                                         return null;
                                     }
 
@@ -608,10 +595,6 @@ export default function CriticPanel({
                                                         {check.message}
                                                     </div>
                                                     {(() => {
-                                                        console.log(
-                                                            `Check ${check.name} details:`,
-                                                            check.details
-                                                        );
                                                         return check.details ? (
                                                             <div className="grid grid-cols-1 gap-2">
                                                                 {/* Special handling for bounds and synchronization checkers */}
@@ -1104,7 +1087,7 @@ export default function CriticPanel({
                                                                                                                     <ul className="list-disc pl-4 mt-1">
                                                                                                                         {llmAnalysisResults.analysis_results.context_bounds.unsafe_accesses.map(
                                                                                                                             (
-                                                                                                                                access: string,
+                                                                                                                                access: any,
                                                                                                                                 i: number
                                                                                                                             ) => (
                                                                                                                                 <li
@@ -1112,9 +1095,36 @@ export default function CriticPanel({
                                                                                                                                         i
                                                                                                                                     }
                                                                                                                                 >
-                                                                                                                                    {
+                                                                                                                                    {typeof access ===
+                                                                                                                                    "string" ? (
                                                                                                                                         access
-                                                                                                                                    }
+                                                                                                                                    ) : (
+                                                                                                                                        <div>
+                                                                                                                                            <div className="font-medium">
+                                                                                                                                                Line{" "}
+                                                                                                                                                {
+                                                                                                                                                    access.line
+                                                                                                                                                }
+                                                                                                                                                :
+                                                                                                                                            </div>
+                                                                                                                                            <div className="text-sm">
+                                                                                                                                                {
+                                                                                                                                                    access.description
+                                                                                                                                                }
+                                                                                                                                            </div>
+                                                                                                                                            {access.potential_causes && (
+                                                                                                                                                <div className="text-xs text-gray-600 mt-1">
+                                                                                                                                                    <strong>
+                                                                                                                                                        Potential
+                                                                                                                                                        causes:
+                                                                                                                                                    </strong>{" "}
+                                                                                                                                                    {
+                                                                                                                                                        access.potential_causes
+                                                                                                                                                    }
+                                                                                                                                                </div>
+                                                                                                                                            )}
+                                                                                                                                        </div>
+                                                                                                                                    )}
                                                                                                                                 </li>
                                                                                                                             )
                                                                                                                         )}
@@ -1132,7 +1142,7 @@ export default function CriticPanel({
                                                                                                                     <ul className="list-disc pl-4 mt-1">
                                                                                                                         {llmAnalysisResults.analysis_results.context_bounds.suggestions.map(
                                                                                                                             (
-                                                                                                                                suggestion: string,
+                                                                                                                                suggestion: any,
                                                                                                                                 i: number
                                                                                                                             ) => (
                                                                                                                                 <li
@@ -1140,9 +1150,22 @@ export default function CriticPanel({
                                                                                                                                         i
                                                                                                                                     }
                                                                                                                                 >
-                                                                                                                                    {
+                                                                                                                                    {typeof suggestion ===
+                                                                                                                                    "string" ? (
                                                                                                                                         suggestion
-                                                                                                                                    }
+                                                                                                                                    ) : (
+                                                                                                                                        <div>
+                                                                                                                                            <div className="font-medium">
+                                                                                                                                                {suggestion.title ||
+                                                                                                                                                    "Suggestion"}
+                                                                                                                                                :
+                                                                                                                                            </div>
+                                                                                                                                            <div className="text-sm">
+                                                                                                                                                {suggestion.description ||
+                                                                                                                                                    suggestion}
+                                                                                                                                            </div>
+                                                                                                                                        </div>
+                                                                                                                                    )}
                                                                                                                                 </li>
                                                                                                                             )
                                                                                                                         )}
@@ -1193,7 +1216,7 @@ export default function CriticPanel({
                                                                                                                     <ul className="list-disc pl-4 mt-1">
                                                                                                                         {llmAnalysisResults.analysis_results.dynamic_memory.allocation_patterns.map(
                                                                                                                             (
-                                                                                                                                pattern: string,
+                                                                                                                                pattern: any,
                                                                                                                                 i: number
                                                                                                                             ) => (
                                                                                                                                 <li
@@ -1201,9 +1224,22 @@ export default function CriticPanel({
                                                                                                                                         i
                                                                                                                                     }
                                                                                                                                 >
-                                                                                                                                    {
+                                                                                                                                    {typeof pattern ===
+                                                                                                                                    "string" ? (
                                                                                                                                         pattern
-                                                                                                                                    }
+                                                                                                                                    ) : (
+                                                                                                                                        <div>
+                                                                                                                                            <div className="font-medium">
+                                                                                                                                                {pattern.type ||
+                                                                                                                                                    "Pattern"}
+                                                                                                                                                :
+                                                                                                                                            </div>
+                                                                                                                                            <div className="text-sm">
+                                                                                                                                                {pattern.description ||
+                                                                                                                                                    pattern}
+                                                                                                                                            </div>
+                                                                                                                                        </div>
+                                                                                                                                    )}
                                                                                                                                 </li>
                                                                                                                             )
                                                                                                                         )}
@@ -1222,7 +1258,7 @@ export default function CriticPanel({
                                                                                                                     <ul className="list-disc pl-4 mt-1">
                                                                                                                         {llmAnalysisResults.analysis_results.dynamic_memory.potential_leaks.map(
                                                                                                                             (
-                                                                                                                                leak: string,
+                                                                                                                                leak: any,
                                                                                                                                 i: number
                                                                                                                             ) => (
                                                                                                                                 <li
@@ -1230,9 +1266,22 @@ export default function CriticPanel({
                                                                                                                                         i
                                                                                                                                     }
                                                                                                                                 >
-                                                                                                                                    {
+                                                                                                                                    {typeof leak ===
+                                                                                                                                    "string" ? (
                                                                                                                                         leak
-                                                                                                                                    }
+                                                                                                                                    ) : (
+                                                                                                                                        <div>
+                                                                                                                                            <div className="font-medium">
+                                                                                                                                                {leak.type ||
+                                                                                                                                                    "Leak"}
+                                                                                                                                                :
+                                                                                                                                            </div>
+                                                                                                                                            <div className="text-sm">
+                                                                                                                                                {leak.description ||
+                                                                                                                                                    leak}
+                                                                                                                                            </div>
+                                                                                                                                        </div>
+                                                                                                                                    )}
                                                                                                                                 </li>
                                                                                                                             )
                                                                                                                         )}

@@ -8,12 +8,52 @@ import MetricsDashboard from "@/components/MetricsDashboard";
 export default function Home() {
     const [activeTab, setActiveTab] = useState("kernel-workbench");
 
-    const renderContent = () => {
-        switch (activeTab) {
-            case "kernel-workbench":
-                return <KernelWorkbench />;
-            case "visualizations":
-                return (
+    // Sample data for demonstration - moved outside to persist
+    const sampleData = [
+        {
+            id: "1",
+            kernel_name: "matrix_multiply",
+            hardware: "NVIDIA A100",
+            backend: "CUDA",
+            score: 85.5,
+            flops_total: 1024000000,
+            runtime_ms: 12.5,
+            memory_usage_kb: 2048,
+            bound_type: "compute",
+            correctness_status: "pass",
+            suggestions_count: 3,
+            analysis_time_ms: 150,
+            optimizations: ["vectorization", "shared_memory", "tiling"],
+            timestamp: new Date().toISOString(),
+        },
+        {
+            id: "2",
+            kernel_name: "convolution_2d",
+            hardware: "AMD MI300X",
+            backend: "Triton",
+            score: 92.3,
+            flops_total: 2048000000,
+            runtime_ms: 8.7,
+            memory_usage_kb: 4096,
+            bound_type: "memory",
+            correctness_status: "pass",
+            suggestions_count: 1,
+            analysis_time_ms: 200,
+            optimizations: ["memory_coalescing", "tensor_cores"],
+            timestamp: new Date(Date.now() - 3600000).toISOString(),
+        },
+    ];
+
+    return (
+        <div className="h-screen flex flex-col">
+            <TopNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+            <main className="flex-1 overflow-hidden">
+                {/* Render all components but only show the active one */}
+                <div className={`h-full ${activeTab === "kernel-workbench" ? "block" : "hidden"}`}>
+                    <KernelWorkbench />
+                </div>
+
+                <div className={`h-full ${activeTab === "visualizations" ? "block" : "hidden"}`}>
                     <div className="flex items-center justify-center h-full bg-gray-50">
                         <div className="text-center">
                             <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -40,53 +80,12 @@ export default function Home() {
                             <p className="text-sm text-gray-500">Coming soon...</p>
                         </div>
                     </div>
-                );
-            case "metrics":
-                // Sample data for demonstration
-                const sampleData = [
-                    {
-                        id: "1",
-                        kernel_name: "matrix_multiply",
-                        hardware: "NVIDIA A100",
-                        backend: "CUDA",
-                        score: 85.5,
-                        flops_total: 1024000000,
-                        runtime_ms: 12.5,
-                        memory_usage_kb: 2048,
-                        bound_type: "compute",
-                        correctness_status: "pass",
-                        suggestions_count: 3,
-                        analysis_time_ms: 150,
-                        optimizations: ["vectorization", "shared_memory", "tiling"],
-                        timestamp: new Date().toISOString(),
-                    },
-                    {
-                        id: "2",
-                        kernel_name: "convolution_2d",
-                        hardware: "AMD MI300X",
-                        backend: "Triton",
-                        score: 92.3,
-                        flops_total: 2048000000,
-                        runtime_ms: 8.7,
-                        memory_usage_kb: 4096,
-                        bound_type: "memory",
-                        correctness_status: "pass",
-                        suggestions_count: 1,
-                        analysis_time_ms: 200,
-                        optimizations: ["memory_coalescing", "tensor_cores"],
-                        timestamp: new Date(Date.now() - 3600000).toISOString(),
-                    },
-                ];
-                return <MetricsDashboard data={sampleData} />;
-            default:
-                return <KernelWorkbench />;
-        }
-    };
+                </div>
 
-    return (
-        <div className="h-screen flex flex-col">
-            <TopNavigation activeTab={activeTab} onTabChange={setActiveTab} />
-            <main className="flex-1 overflow-hidden">{renderContent()}</main>
+                <div className={`h-full ${activeTab === "metrics" ? "block" : "hidden"}`}>
+                    <MetricsDashboard data={sampleData} />
+                </div>
+            </main>
         </div>
     );
 }

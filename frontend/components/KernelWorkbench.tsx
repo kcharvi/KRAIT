@@ -163,7 +163,7 @@ export default function KernelWorkbench() {
     return (
         <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
             {/* Left column */}
-            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full">
+            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full min-h-0">
                 {/* Sticky header with dropdowns */}
                 <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
                     <div className="flex items-center justify-between px-4 py-3">
@@ -193,10 +193,10 @@ export default function KernelWorkbench() {
                 </div>
 
                 {/* Generated Code Display */}
-                <div className="flex-1 p-4">
+                <div className="flex-1 p-4 min-h-0">
                     {generatedCode ? (
                         <div className="h-full flex flex-col">
-                            <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center justify-between mb-3 flex-shrink-0">
                                 <h3 className="text-sm font-semibold text-gray-900">
                                     Generated Kernel
                                 </h3>
@@ -218,7 +218,7 @@ export default function KernelWorkbench() {
                                     </button>
                                 </div>
                             </div>
-                            <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-700 max-h-80">
+                            <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-700 min-h-0">
                                 <div className="h-full overflow-auto">
                                     <pre className="text-sm text-green-400 font-mono leading-relaxed p-4 whitespace-pre">
                                         <code>
@@ -238,7 +238,7 @@ export default function KernelWorkbench() {
                             </div>
                         </div>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center">
+                        <div className="h-full flex items-center justify-center">
                             <div className="text-center">
                                 <div className="mx-auto mb-4 h-10 w-10 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center">
                                     ⚙️
@@ -253,7 +253,7 @@ export default function KernelWorkbench() {
                 </div>
 
                 {/* Bottom prompt composer */}
-                <div className="border-t border-gray-200 p-4 space-y-4">
+                <div className="border-t border-gray-200 p-4 space-y-4 flex-shrink-0">
                     {/* Problem Selector Dropdown */}
                     <div className="relative">
                         <button
@@ -296,7 +296,7 @@ export default function KernelWorkbench() {
 
                     {/* Code Block Display */}
                     {selectedProblem && currentCode && (
-                        <div className="bg-gray-900 rounded-lg p-3 h-32 overflow-y-auto">
+                        <div className="bg-gray-900 rounded-lg p-3 h-24 overflow-y-auto">
                             {isCustomProblem ? (
                                 <textarea
                                     value={customCode}
@@ -312,14 +312,14 @@ export default function KernelWorkbench() {
                         </div>
                     )}
                     {selectedProblem && !currentCode && (
-                        <div className="bg-gray-100 rounded-lg p-3 h-32 flex items-center justify-center text-sm text-gray-500">
+                        <div className="bg-gray-100 rounded-lg p-3 h-24 flex items-center justify-center text-sm text-gray-500">
                             {isCustomProblem
                                 ? "Start writing your custom code..."
                                 : "No code available for this problem"}
                         </div>
                     )}
                     {!selectedProblem && (
-                        <div className="bg-gray-100 rounded-lg p-3 h-32 flex items-center justify-center text-sm text-gray-500">
+                        <div className="bg-gray-100 rounded-lg p-3 h-24 flex items-center justify-center text-sm text-gray-500">
                             Select a problem to view code
                         </div>
                     )}
@@ -355,7 +355,7 @@ export default function KernelWorkbench() {
             </div>
 
             {/* Right column - Critic Agent */}
-            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 h-full">
+            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 h-full min-h-0">
                 <CriticPanel
                     kernelCode={generatedCode}
                     hardware={hardware}
