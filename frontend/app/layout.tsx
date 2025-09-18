@@ -5,8 +5,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: "Mini Mako",
-    description: "LLM-powered application with visualizations and chat",
+    title: "KRAIT - Kernel Review, Analysis, and Intelligent Tuning",
+    description:
+        "Advanced GPU kernel analysis and optimization platform with AI-powered code review and performance tuning",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

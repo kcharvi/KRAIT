@@ -170,6 +170,32 @@ class GeminiClient:
         except Exception as e:
             yield f"Error: {str(e)}"
     
+    async def generate_content_async(self, prompt: str) -> str:
+        """Generate content from a simple string prompt"""
+        try:
+            print(f"🔍 generate_content_async - Input prompt length: {len(prompt)}")
+            # Convert string prompt to message format
+            messages = [{"role": "user", "content": prompt}]
+            print(f"🔍 generate_content_async - Messages: {messages}")
+            
+            response = await self.generate_response(messages)
+            print(f"🔍 generate_content_async - Response type: {type(response)}")
+            print(f"🔍 generate_content_async - Response has content: {hasattr(response, 'content')}")
+            
+            if hasattr(response, 'content'):
+                print(f"🔍 generate_content_async - Content type: {type(response.content)}")
+                print(f"🔍 generate_content_async - Content preview: {str(response.content)[:200]}...")
+                return response.content
+            else:
+                print(f"🔍 generate_content_async - No content attr, converting to string")
+                return str(response)
+        except Exception as e:
+            print(f"❌ generate_content_async - Exception: {str(e)}")
+            print(f"❌ generate_content_async - Exception type: {type(e)}")
+            import traceback
+            print(f"❌ generate_content_async - Traceback: {traceback.format_exc()}")
+            raise Exception(f"Gemini API error: {str(e)}")
+    
     def get_available_models(self) -> List[Dict[str, Any]]:
         """Get list of available Gemini models"""
         return [

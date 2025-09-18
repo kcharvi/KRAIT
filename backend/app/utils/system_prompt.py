@@ -1,4 +1,5 @@
 """
+KRAIT - Kernel Review, Analysis, and Intelligent Tuning
 System prompt for kernel generation
 """
 

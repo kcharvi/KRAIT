@@ -6,7 +6,7 @@ from pydantic import Field
 
 class Settings(BaseSettings):
     # API Configuration
-    app_name: str = Field(default="Mini Mako Backend", description="Application name")
+    app_name: str = Field(default="KRAIT Backend", description="Application name")
     version: str = Field(default="0.1.0", description="API version")
     debug: bool = Field(default=False, description="Debug mode")
     

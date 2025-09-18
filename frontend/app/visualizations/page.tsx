@@ -1,9 +1,7 @@
-import Layout from "@/components/Layout";
 import { BarChart3 } from "lucide-react";
 
 export default function VisualizationsPage() {
     return (
-        <Layout>
             <div className="p-8">
                 <div className="flex items-center mb-8">
                     <BarChart3 className="h-8 w-8 text-primary-500 mr-3" />
@@ -16,6 +14,5 @@ export default function VisualizationsPage() {
                     <p className="text-gray-500">Visualization features will be available here.</p>
                 </div>
             </div>
-        </Layout>
     );
 }

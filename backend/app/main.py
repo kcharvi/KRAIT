@@ -4,13 +4,13 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 from .config import settings
-from .routers import chat, health, kernel
+from .routers import chat, health, kernel, critic
 
 # Create FastAPI app
 app = FastAPI(
     title=settings.app_name,
     version=settings.version,
-    description="FastAPI backend with LLM integration using LangChain and Hugging Face",
+    description="KRAIT - Advanced GPU kernel analysis and optimization platform with AI-powered code review",
     docs_url="/docs",
     redoc_url="/redoc"
 )
@@ -28,6 +28,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(chat.router)
 app.include_router(kernel.router, prefix="/api/v1/kernel", tags=["kernel"])
+app.include_router(critic.router, prefix="/api/v1/critic", tags=["critic"])
 
 # Global exception handler
 @app.exception_handler(Exception)
@@ -41,7 +42,7 @@ async def global_exception_handler(request, exc):
 @app.get("/")
 async def root():
     return {
-        "message": "Mini Mako Backend API",
+        "message": "KRAIT Backend API - Kernel Review, Analysis, and Intelligent Tuning",
         "version": settings.version,
         "docs": "/docs",
         "health": "/api/v1/health"

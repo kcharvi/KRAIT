@@ -1,7 +1,7 @@
 [project]
-name = "mini-mako-backend"
+name = "krait-backend"
 version = "0.1.0"
-description = "FastAPI backend with LLM integration using LangChain and Hugging Face"
+description = "KRAIT - Advanced GPU kernel analysis and optimization platform with AI-powered code review"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

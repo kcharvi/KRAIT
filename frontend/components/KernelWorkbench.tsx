@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { ChevronDown, Send, ChevronUp } from "lucide-react";
-import MarkdownRenderer from "./MarkdownRenderer";
 import { Problem, parseProblemMDX } from "../utils/parseMDX";
+import CriticPanel from "./CriticPanel";
 
 export default function KernelWorkbench() {
     const [backend, setBackend] = useState("Triton");
@@ -161,9 +161,9 @@ export default function KernelWorkbench() {
     };
 
     return (
-        <div className="h-screen grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
             {/* Left column */}
-            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden max-h-screen">
+            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full">
                 {/* Sticky header with dropdowns */}
                 <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
                     <div className="flex items-center justify-between px-4 py-3">
@@ -215,16 +215,6 @@ export default function KernelWorkbench() {
                                         className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
                                     >
                                         Copy
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setGeneratedCode(
-                                                '// Test code\n__global__ void test() {\n    printf("Hello World");\n}'
-                                            );
-                                        }}
-                                        className="px-2 py-1 text-xs bg-blue-200 hover:bg-blue-300 rounded text-blue-700"
-                                    >
-                                        Test
                                     </button>
                                 </div>
                             </div>
@@ -364,16 +354,17 @@ export default function KernelWorkbench() {
                 </div>
             </div>
 
-            {/* Right column */}
-            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="flex-1 flex items-center justify-center p-8">
-                    <div className="text-center">
-                        <div className="mx-auto mb-4 h-10 w-10 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center">
-                            👁️
-                        </div>
-                        <h2 className="text-gray-700">Critic Agent</h2>
-                    </div>
-                </div>
+            {/* Right column - Critic Agent */}
+            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 h-full">
+                <CriticPanel
+                    kernelCode={generatedCode}
+                    hardware={hardware}
+                    backend={backend}
+                    isAnalyzing={false}
+                    onAnalysisComplete={(result) => {
+                        console.log("Critic analysis completed:", result);
+                    }}
+                />
             </div>
         </div>
     );
