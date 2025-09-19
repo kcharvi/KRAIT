@@ -5,10 +5,10 @@
 // Type: compile_only
 
 #include <iostream>
+#include <vector>
+#include <cuda_runtime.h>
 
 #define TILE_WIDTH 32
-
-#define TILE_WIDTH 32 // Adjust TILE_WIDTH based on H100 capabilities and matrix sizes. Experimentation is key.
 
 __global__ void matrixMultiplyKernel(const float *A, const float *B, float *C, int widthA, int widthB, int heightA) {
   // Thread ID
@@ -63,3 +63,56 @@ __global__ void matrixMultiplySharedMemKernel(const float *A, const float *B, fl
     }
 }
 
+int main() {
+    int heightA = 1024;
+    int widthA = 1024;
+    int widthB = 1024;
+
+    // 1. Allocate host memory
+    std::vector<float> h_A(heightA * widthA);
+    std::vector<float> h_B(widthA * widthB);
+    std::vector<float> h_C(heightA * widthB);
+
+    // 2. Initialize host matrices
+    // For simplicity, let's initialize with dummy values
+    for (int i = 0; i < heightA * widthA; ++i) {
+        h_A[i] = 1.0f;
+    }
+    for (int i = 0; i < widthA * widthB; ++i) {
+        h_B[i] = 2.0f;
+    }
+
+    // 3. Allocate device memory
+    float *d_A, *d_B, *d_C;
+    cudaMalloc(&d_A, h_A.size() * sizeof(float));
+    cudaMalloc(&d_B, h_B.size() * sizeof(float));
+    cudaMalloc(&d_C, h_C.size() * sizeof(float));
+
+    // 4. Copy data from host to device
+    cudaMemcpy(d_A, h_A.data(), h_A.size() * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_B, h_B.data(), h_B.size() * sizeof(float), cudaMemcpyHostToDevice);
+
+    // 5. Define grid and block dimensions
+    dim3 blockDim(TILE_WIDTH, TILE_WIDTH);
+    dim3 gridDim((widthB + blockDim.x - 1) / blockDim.x, (heightA + blockDim.y - 1) / blockDim.y);
+
+    // 6. Launch the kernel
+    // We will launch the shared memory kernel for better performance
+    matrixMultiplySharedMemKernel<<<gridDim, blockDim>>>(d_A, d_B, d_C, widthA, widthB, heightA);
+
+    // Wait for the GPU to finish
+    cudaDeviceSynchronize();
+
+    // 7. Copy the result back from device to host
+    cudaMemcpy(h_C.data(), d_C, h_C.size() * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // 8. (Optional) Verify or print a small part of the result
+    std::cout << "Successfully executed kernel. Result C[0,0] = " << h_C[0] << std::endl;
+
+    // 9. Free device memory
+    cudaFree(d_A);
+    cudaFree(d_B);
+    cudaFree(d_C);
+
+    return 0;
+}
