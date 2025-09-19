@@ -100,7 +100,7 @@ export default function PerformanceChart({
                     value: item.value / item.count, // Average value
                     displayName:
                         groupBy === "timestamp"
-                            ? new Date(item.timestamp).toLocaleDateString()
+                            ? new Date(item.timestamp).toISOString().split("T")[0]
                             : item.name,
                 }))
                 .sort((a: any, b: any) => {

@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 from .config import settings
-from .routers import chat, health, kernel, critic
+from .routers import chat, health, kernel, critic, gpu_executor
 
 # Create FastAPI app
 app = FastAPI(
@@ -29,6 +29,7 @@ app.include_router(health.router)
 app.include_router(chat.router)
 app.include_router(kernel.router, prefix="/api/v1/kernel", tags=["kernel"])
 app.include_router(critic.router, prefix="/api/v1/critic", tags=["critic"])
+app.include_router(gpu_executor.router, prefix="/api/v1/gpu", tags=["gpu-executor"])
 
 # Global exception handler
 @app.exception_handler(Exception)

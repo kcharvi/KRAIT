@@ -28,7 +28,30 @@ def create_kernel_generation_prompt(backend: str, hardware: str, code: str, user
     }
     language = language_map.get(backend, "python")
     
-    prompt = f"""Generate optimized {backend} kernel for {hardware}.
+    if backend.upper() == "CUDA":
+        prompt = f"""Generate a complete CUDA program for {hardware} with the following requirements:
+
+Base code:
+```cuda
+{code}
+```
+
+Requirements: {user_prompt}
+
+IMPORTANT: Generate a COMPLETE CUDA program that includes:
+1. All necessary #include statements (#include <cuda_runtime.h>, #include <stdio.h>, etc.)
+2. All #define statements at the TOP of the file
+3. Complete kernel functions with proper __global__ declarations
+4. A main() function that:
+   - Allocates memory on host and device
+   - Launches the kernel with proper grid/block dimensions
+   - Copies results back to host
+   - Prints results and cleans up memory
+5. Proper error checking for CUDA operations
+
+Return ONLY the complete CUDA program in ```cuda``` blocks:"""
+    else:
+        prompt = f"""Generate optimized {backend} kernel for {hardware}.
 
 Base code:
 ```{language}
@@ -42,7 +65,12 @@ Return ONLY the optimized code in ```{language}``` blocks:"""
     if problem_name:
         prompt += f"\nProblem: {problem_name}"
     
-    prompt += f"""
+    if backend.upper() == "CUDA":
+        prompt += f"""
+
+Generate a complete, compilable CUDA program optimized for {hardware}. Include all necessary includes, defines, kernel functions, and main() function. Return ONLY the complete code in ```cuda``` blocks."""
+    else:
+        prompt += f"""
 
 Optimize for {hardware} using {backend} best practices. Return ONLY code in ```{language}``` blocks."""
     

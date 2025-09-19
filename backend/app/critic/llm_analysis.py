@@ -9,6 +9,11 @@ from ..config import settings
 from .critic_models import Suggestion, SeverityLevel
 
 
+def get_llm_client():
+    """Get LLM client for kernel fixing."""
+    return GeminiClient()
+
+
 class LLMCorrectnessAnalyzer:
     """Advanced LLM-based correctness analysis"""
     

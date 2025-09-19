@@ -351,7 +351,7 @@ export default function MetricsDashboard({ data, onExport }: MetricsDashboardPro
                     <div className="flex items-center justify-between">
                         <h2 className="text-2xl font-bold text-gray-900">Analysis Dashboard</h2>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <span>Last updated: {new Date().toLocaleString()}</span>
+                            <span>Last updated: {new Date().toISOString().split("T")[0]}</span>
                         </div>
                     </div>
 

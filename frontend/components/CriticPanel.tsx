@@ -81,6 +81,12 @@ export default function CriticPanel({
     const [isTypeSafetyLlmAnalyzing, setIsTypeSafetyLlmAnalyzing] = useState(false);
     const [typeSafetyLlmError, setTypeSafetyLlmError] = useState<string | null>(null);
 
+    // GPU execution state
+    const [realMetrics, setRealMetrics] = useState<any>(null);
+    const [isExecuting, setIsExecuting] = useState(false);
+    const [executionProvider, setExecutionProvider] = useState("github_colab");
+    const [executionError, setExecutionError] = useState<string | null>(null);
+
     // Debug: Track analysisResult changes
     useEffect(() => {
         console.log("analysisResult state changed:", analysisResult);
@@ -290,6 +296,103 @@ export default function CriticPanel({
         }
     };
 
+    const executeOnGPU = async () => {
+        if (!kernelCode.trim()) {
+            alert("No kernel code to execute");
+            return;
+        }
+
+        console.log("🚀 Starting GPU execution...", {
+            kernelLength: kernelCode.length,
+            hardware,
+            provider: executionProvider,
+            timestamp: new Date().toISOString(),
+        });
+
+        setIsExecuting(true);
+        setExecutionError(null);
+        setRealMetrics(null);
+
+        try {
+            const requestBody = {
+                kernel_code: kernelCode,
+                hardware: hardware,
+                provider: executionProvider,
+                timeout: 600, // Increased to 10 minutes for GitHub-Colab cycle
+            };
+
+            // Call backend directly instead of through Next.js API route
+            const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+            const endpoint = `${backendUrl}/api/v1/gpu/execute-kernel`;
+
+            console.log("📤 Sending request to:", endpoint);
+            console.log("📤 Request body:", {
+                ...requestBody,
+                kernel_code: kernelCode.substring(0, 100) + "...",
+            });
+
+            const response = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(requestBody),
+            });
+
+            console.log("📊 Response status:", response.status);
+            console.log("📊 Response headers:", Object.fromEntries(response.headers.entries()));
+            console.log("📊 Response ok:", response.ok);
+
+            if (!response.ok) {
+                let errorData;
+                try {
+                    const responseText = await response.text();
+                    console.log("❌ Error response text:", responseText);
+
+                    // Check if it's HTML (like a 404 page)
+                    if (responseText.includes("<!DOCTYPE") || responseText.includes("<html")) {
+                        throw new Error(
+                            `Backend server not running or endpoint not found (${response.status}). Please ensure the backend is running on port 8000.`
+                        );
+                    }
+
+                    errorData = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error("❌ Failed to parse error response:", parseError);
+                    throw new Error(
+                        `HTTP error! status: ${response.status}. Response was not valid JSON.`
+                    );
+                }
+
+                throw new Error(
+                    errorData.error || errorData.detail || `HTTP error! status: ${response.status}`
+                );
+            }
+
+            const result = await response.json();
+            console.log("✅ GPU execution result:", result);
+            console.log("📊 Result success:", result.success);
+            console.log("📊 Result metrics:", result.metrics);
+            console.log("📊 Result error:", result.error);
+            console.log("📊 Result provider:", result.provider);
+
+            if (result.success) {
+                setRealMetrics(result.metrics);
+                setExecutionError(null);
+                console.log("🎉 GPU execution successful!");
+            } else {
+                const errorMsg = result.error || "GPU execution failed";
+                console.error("❌ GPU execution failed:", errorMsg);
+                setExecutionError(errorMsg);
+            }
+        } catch (error) {
+            console.error("💥 GPU execution error:", error);
+            const errorMessage = error instanceof Error ? error.message : "GPU execution failed";
+            setExecutionError(errorMessage);
+        } finally {
+            setIsExecuting(false);
+            console.log("🏁 GPU execution finished");
+        }
+    };
+
     const exportResults = () => {
         if (!analysisResult) return;
 
@@ -335,15 +438,6 @@ export default function CriticPanel({
             </div>
         );
     }
-
-    console.log("CriticPanel render - analysisResult:", analysisResult);
-    console.log("CriticPanel render - analysisResult type:", typeof analysisResult);
-    console.log(
-        "CriticPanel render - analysisResult keys:",
-        analysisResult ? Object.keys(analysisResult) : "null"
-    );
-    console.log("CriticPanel render - isLoading:", isLoading);
-    console.log("CriticPanel render - error:", error);
 
     if (!analysisResult) {
         return (
@@ -445,7 +539,7 @@ export default function CriticPanel({
                                 </div>
                                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                                     <div className="text-2xl font-bold text-blue-600">
-                                        {analysisResult.performance.flops_total?.toLocaleString() ||
+                                        {analysisResult.performance.flops_total?.toFixed(0) ||
                                             "N/A"}
                                     </div>
                                     <div className="text-xs text-gray-600">Total FLOPs</div>
@@ -1105,6 +1199,7 @@ export default function CriticPanel({
                                                                                                                                                 {
                                                                                                                                                     access.line
                                                                                                                                                 }
+
                                                                                                                                                 :
                                                                                                                                             </div>
                                                                                                                                             <div className="text-sm">
@@ -1158,6 +1253,7 @@ export default function CriticPanel({
                                                                                                                                             <div className="font-medium">
                                                                                                                                                 {suggestion.title ||
                                                                                                                                                     "Suggestion"}
+
                                                                                                                                                 :
                                                                                                                                             </div>
                                                                                                                                             <div className="text-sm">
@@ -1232,6 +1328,7 @@ export default function CriticPanel({
                                                                                                                                             <div className="font-medium">
                                                                                                                                                 {pattern.type ||
                                                                                                                                                     "Pattern"}
+
                                                                                                                                                 :
                                                                                                                                             </div>
                                                                                                                                             <div className="text-sm">
@@ -1274,6 +1371,7 @@ export default function CriticPanel({
                                                                                                                                             <div className="font-medium">
                                                                                                                                                 {leak.type ||
                                                                                                                                                     "Leak"}
+
                                                                                                                                                 :
                                                                                                                                             </div>
                                                                                                                                             <div className="text-sm">
@@ -1888,6 +1986,125 @@ export default function CriticPanel({
                                             .join(", ") || "None detected"}
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* GPU Execution Section */}
+                <div className="border-b border-gray-200">
+                    <button
+                        onClick={() => toggleSection("gpu-execution")}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                    >
+                        <span className="font-medium text-gray-900">Real GPU Execution</span>
+                        {expandedSections.has("gpu-execution") ? (
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                        )}
+                    </button>
+                    {expandedSections.has("gpu-execution") && (
+                        <div className="px-4 pb-4 space-y-4">
+                            <div className="p-4 bg-blue-50 rounded-lg">
+                                <h4 className="font-medium text-blue-900 mb-3">
+                                    Execute on Real GPU
+                                </h4>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <select
+                                        value={executionProvider}
+                                        onChange={(e) => setExecutionProvider(e.target.value)}
+                                        className="text-sm border rounded px-2 py-1"
+                                    >
+                                        <option value="github_colab">Google Colab (GitHub)</option>
+                                    </select>
+                                    <button
+                                        onClick={executeOnGPU}
+                                        disabled={isExecuting || !kernelCode.trim()}
+                                        className="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50 flex items-center gap-1"
+                                    >
+                                        {isExecuting ? (
+                                            <>
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                Executing...
+                                            </>
+                                        ) : (
+                                            "Run on GPU"
+                                        )}
+                                    </button>
+                                </div>
+
+                                {executionError && (
+                                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-sm text-red-700">
+                                        <div className="flex items-center gap-1">
+                                            <XCircle className="w-4 h-4" />
+                                            {executionError}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {realMetrics && (
+                                    <div className="mt-3 space-y-2">
+                                        <h5 className="font-medium text-blue-900 text-sm">
+                                            Execution Results:
+                                        </h5>
+                                        <div className="grid grid-cols-2 gap-2 text-sm">
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Provider:</span>
+                                                <span className="font-medium">
+                                                    {realMetrics.provider || "N/A"}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Status:</span>
+                                                <span className="font-medium text-green-600">
+                                                    {realMetrics.status || "Completed"}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">
+                                                    Execution Time:
+                                                </span>
+                                                <span className="font-medium">
+                                                    {realMetrics.execution_time?.toFixed(2) ||
+                                                        "N/A"}
+                                                    ms
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">
+                                                    GPU Utilization:
+                                                </span>
+                                                <span className="font-medium">
+                                                    {realMetrics.gpu_utilization?.toFixed(1) ||
+                                                        "N/A"}
+                                                    %
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Memory Usage:</span>
+                                                <span className="font-medium">
+                                                    {realMetrics.memory_usage?.toFixed(0) || "N/A"}
+                                                    MB
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                                <span className="text-gray-600">Throughput:</span>
+                                                <span className="font-medium">
+                                                    {realMetrics.throughput
+                                                        ? realMetrics.throughput.toExponential(2)
+                                                        : "N/A"}{" "}
+                                                    ops/s
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {realMetrics.hardware && (
+                                            <div className="text-xs text-gray-500 mt-2">
+                                                Hardware: {realMetrics.hardware}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

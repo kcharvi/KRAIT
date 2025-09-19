@@ -189,7 +189,7 @@ export default function MetricsTable({ data, onExport }: MetricsTableProps) {
 
     const formatValue = (value: any, field: SortField) => {
         if (field === "timestamp") {
-            return new Date(value).toLocaleString();
+            return new Date(value).toISOString().split("T")[0];
         }
         if (
             field === "score" ||
@@ -198,7 +198,7 @@ export default function MetricsTable({ data, onExport }: MetricsTableProps) {
             field === "memory_usage_kb" ||
             field === "analysis_time_ms"
         ) {
-            return typeof value === "number" ? value.toLocaleString() : value;
+            return typeof value === "number" ? value.toFixed(0) : value;
         }
         if (field === "optimizations") {
             return Array.isArray(value) ? value.join(", ") : value;

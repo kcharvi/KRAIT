@@ -6,8 +6,8 @@ import { Problem, parseProblemMDX } from "../utils/parseMDX";
 import CriticPanel from "./CriticPanel";
 
 export default function KernelWorkbench() {
-    const [backend, setBackend] = useState("Triton");
-    const [hardware, setHardware] = useState("AMD MI300X");
+    const [backend, setBackend] = useState("CUDA");
+    const [hardware, setHardware] = useState("NVIDIA H100");
     const [attempts, setAttempts] = useState(1);
     const [prompt, setPrompt] = useState("");
     const [selectedProblem, setSelectedProblem] = useState<string>("");
@@ -18,7 +18,13 @@ export default function KernelWorkbench() {
     const [isCustomProblem, setIsCustomProblem] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedCode, setGeneratedCode] = useState<string>("");
-    const [isStreaming, setIsStreaming] = useState(false);
+    const [isCompiling, setIsCompiling] = useState(false);
+    const [compilationStatus, setCompilationStatus] = useState<
+        "idle" | "compiling" | "success" | "error"
+    >("idle");
+    const [compilationError, setCompilationError] = useState<string>("");
+    const [compilationAttempts, setCompilationAttempts] = useState(0);
+    const [maxCompilationAttempts] = useState(5);
 
     // Load sample problems from markdown files
     useEffect(() => {
@@ -92,7 +98,6 @@ export default function KernelWorkbench() {
         );
 
         setIsGenerating(true);
-        setIsStreaming(true);
         setGeneratedCode("");
 
         try {
@@ -133,19 +138,8 @@ export default function KernelWorkbench() {
 
             // Set the generated code from the response
             if (data.optimized_code) {
-                console.log("Starting streaming simulation...");
-                // Simulate streaming by displaying code character by character
-                const code = data.optimized_code;
-                setGeneratedCode("");
-                setIsStreaming(true);
-
-                for (let i = 0; i <= code.length; i++) {
-                    await new Promise((resolve) => setTimeout(resolve, 10)); // 10ms delay
-                    setGeneratedCode(code.substring(0, i));
-                }
-
-                console.log("Streaming simulation complete");
-                setIsStreaming(false);
+                console.log("Code received, updating display...");
+                setGeneratedCode(data.optimized_code);
             } else {
                 console.error("No optimized_code in response:", data);
                 throw new Error("No optimized code in response");
@@ -154,9 +148,132 @@ export default function KernelWorkbench() {
             console.error("Error generating kernel:", error);
             const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
             alert(`Failed to generate kernel: ${errorMessage}`);
-            setIsStreaming(false);
         } finally {
             setIsGenerating(false);
+        }
+    };
+
+    const handleCompile = async () => {
+        if (!generatedCode.trim()) {
+            alert("No code to compile");
+            return;
+        }
+
+        // Reset attempts when starting fresh compilation
+        setCompilationAttempts(0);
+        setIsCompiling(true);
+        setCompilationStatus("compiling");
+        setCompilationError("");
+
+        await attemptCompilation();
+    };
+
+    const attemptCompilation = async () => {
+        try {
+            const response = await fetch(
+                `${process.env.BACKEND_URL || "http://localhost:8000"}/api/v1/gpu/compile-kernel`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        kernel_code: generatedCode,
+                        hardware,
+                        backend,
+                        problem_name: selectedProblemData?.name || "Unknown",
+                        user_prompt: prompt,
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log("🔍 Compilation result:", result);
+
+            if (result.success) {
+                setCompilationStatus("success");
+                setCompilationError("");
+                setCompilationAttempts(0);
+                console.log("✅ Compilation successful!");
+
+                // Update the generated code with the corrected version
+                if (result.corrected_code) {
+                    setGeneratedCode(result.corrected_code);
+                    console.log("✅ Code updated with corrected version");
+                }
+
+                setIsCompiling(false);
+            } else {
+                setCompilationStatus("error");
+                setCompilationError(result.error || "Compilation failed");
+                console.log("❌ Compilation failed:", result.error);
+
+                // Try to fix the kernel with LLM if under limit
+                if (compilationAttempts < maxCompilationAttempts) {
+                    await handleFixKernel(result.error);
+                } else {
+                    console.log("❌ Max attempts reached, stopping");
+                    setIsCompiling(false);
+                }
+            }
+        } catch (error) {
+            console.error("Compilation failed:", error);
+            setCompilationStatus("error");
+            setCompilationError("Failed to compile kernel");
+            setIsCompiling(false);
+        }
+    };
+
+    const handleFixKernel = async (error: string) => {
+        const currentAttempt = compilationAttempts + 1;
+        console.log(
+            `🔧 Attempting to fix kernel (attempt ${currentAttempt}/${maxCompilationAttempts})`
+        );
+
+        try {
+            const response = await fetch(
+                `${process.env.BACKEND_URL || "http://localhost:8000"}/api/v1/gpu/fix-kernel`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        kernel_code: generatedCode,
+                        compilation_error: error,
+                        hardware,
+                        backend,
+                        problem_name: selectedProblemData?.name || "Unknown",
+                        user_prompt: prompt,
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log("🔍 Fix result:", result);
+
+            if (result.success) {
+                setGeneratedCode(result.fixed_code);
+                setCompilationAttempts(currentAttempt);
+                console.log("🔧 Kernel fixed, retrying compilation...");
+
+                // Retry compilation with fixed code
+                setTimeout(() => {
+                    attemptCompilation();
+                }, 1000);
+            } else {
+                setCompilationError(result.error || "Failed to fix kernel");
+                console.log("❌ Failed to fix kernel:", result.error);
+                setIsCompiling(false);
+            }
+        } catch (error) {
+            console.error("Kernel fixing failed:", error);
+            setCompilationError("Failed to fix kernel");
+            setIsCompiling(false);
         }
     };
 
@@ -174,8 +291,8 @@ export default function KernelWorkbench() {
                                 value={backend}
                                 onChange={(e) => setBackend(e.target.value)}
                             >
-                                <option>Triton</option>
                                 <option>CUDA</option>
+                                <option>Triton</option>
                                 <option>OpenCL</option>
                             </select>
                             <select
@@ -183,9 +300,9 @@ export default function KernelWorkbench() {
                                 value={hardware}
                                 onChange={(e) => setHardware(e.target.value)}
                             >
-                                <option>AMD MI300X</option>
                                 <option>NVIDIA A100</option>
                                 <option>NVIDIA H100</option>
+                                <option>AMD MI300X</option>
                                 <option>CPU</option>
                             </select>
                         </div>
@@ -201,12 +318,26 @@ export default function KernelWorkbench() {
                                     Generated Kernel
                                 </h3>
                                 <div className="flex items-center gap-2">
-                                    {isStreaming && (
-                                        <div className="flex items-center text-xs text-primary-600">
-                                            <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse mr-2"></div>
-                                            Generating...
+                                    {isCompiling && (
+                                        <div className="flex items-center text-xs text-blue-600">
+                                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse mr-2"></div>
+                                            Compiling... ({compilationAttempts}/
+                                            {maxCompilationAttempts})
                                         </div>
                                     )}
+                                    {compilationStatus === "success" && (
+                                        <div className="flex items-center text-xs text-green-600">
+                                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                                            ✅ Compiled Successfully
+                                        </div>
+                                    )}
+                                    {compilationStatus === "error" &&
+                                        compilationAttempts >= maxCompilationAttempts && (
+                                            <div className="flex items-center text-xs text-red-600">
+                                                <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
+                                                ❌ Compilation Failed
+                                            </div>
+                                        )}
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(generatedCode);
@@ -215,6 +346,29 @@ export default function KernelWorkbench() {
                                         className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
                                     >
                                         Copy
+                                    </button>
+                                    <button
+                                        onClick={handleCompile}
+                                        disabled={
+                                            !generatedCode.trim() || isCompiling || isGenerating
+                                        }
+                                        className={`px-2 py-1 text-xs rounded text-white ${
+                                            compilationStatus === "success"
+                                                ? "bg-green-500 hover:bg-green-600"
+                                                : compilationStatus === "error" &&
+                                                  compilationAttempts >= maxCompilationAttempts
+                                                ? "bg-red-500 hover:bg-red-600"
+                                                : "bg-blue-500 hover:bg-blue-600"
+                                        } disabled:bg-gray-400 disabled:cursor-not-allowed`}
+                                    >
+                                        {compilationStatus === "success"
+                                            ? "✅ Compiled"
+                                            : compilationStatus === "error" &&
+                                              compilationAttempts >= maxCompilationAttempts
+                                            ? "❌ Failed"
+                                            : isCompiling
+                                            ? "Compiling..."
+                                            : "Compile"}
                                     </button>
                                 </div>
                             </div>
@@ -236,6 +390,31 @@ export default function KernelWorkbench() {
                                     </pre>
                                 </div>
                             </div>
+                            {compilationError && (
+                                <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <div className="w-4 h-4 text-red-500">❌</div>
+                                        </div>
+                                        <div className="ml-3">
+                                            <h4 className="text-sm font-medium text-red-800">
+                                                Compilation Error
+                                            </h4>
+                                            <div className="mt-1 text-sm text-red-700">
+                                                <pre className="whitespace-pre-wrap font-mono text-xs">
+                                                    {compilationError}
+                                                </pre>
+                                            </div>
+                                            {compilationAttempts < maxCompilationAttempts && (
+                                                <div className="mt-2 text-xs text-red-600">
+                                                    Attempting to fix automatically... (
+                                                    {compilationAttempts}/{maxCompilationAttempts})
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="h-full flex items-center justify-center">

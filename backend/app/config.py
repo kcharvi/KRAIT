@@ -31,10 +31,16 @@ class Settings(BaseSettings):
     max_tokens: int = Field(default=8000, description="Default maximum tokens")
     temperature: float = Field(default=0.7, description="Default temperature")
     
+    # GitHub Integration Configuration
+    github_token: Optional[str] = Field(default=None, description="GitHub personal access token")
+    github_owner: Optional[str] = Field(default=None, description="GitHub username or organization")
+    github_repo_name: str = Field(default="krait", description="GitHub repository name")
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"  # Ignore extra fields that are not defined in the model
 
 
 # Global settings instance

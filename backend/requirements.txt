@@ -19,6 +19,9 @@ sentence-transformers>=2.2.2
 # HTTP client
 httpx>=0.25.0
 
+# GitHub integration
+PyGithub>=1.59.0
+
 # Google Gemini
 google-generativeai>=0.3.0
 
