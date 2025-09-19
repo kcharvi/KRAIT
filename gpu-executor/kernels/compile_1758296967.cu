@@ -4,6 +4,10 @@
 // Timestamp: 1758296967
 // Type: compile_only
 
+#include <iostream>
+
+#define TILE_WIDTH 32
+
 #define TILE_WIDTH 32 // Adjust TILE_WIDTH based on H100 capabilities and matrix sizes. Experimentation is key.
 
 __global__ void matrixMultiplyKernel(const float *A, const float *B, float *C, int widthA, int widthB, int heightA) {
