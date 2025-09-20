@@ -1,6 +1,0 @@
-{
-  "success": false,
-  "error": "CUDA compilation error: name 'get_gpu_architecture' is not defined",
-  "provider": "colab",
-  "timestamp": 1758318416.936816
-}
