@@ -163,11 +163,19 @@ class GitHubExecutor:
         try:
             logger.info(f"Uploading kernel to GitHub: {filename}")
             
-            # Upload kernel code to GitHub
+            # Upload kernel code to GitHub with execution metadata
+            metadata = f"""// EXECUTION REQUEST
+// Hardware: {hardware}
+// Backend: CUDA
+// Timestamp: {timestamp}
+// Type: execute
+
+{kernel_code}"""
+            
             self.repo.create_file(
                 filename,
                 f"Kernel execution request {timestamp}",
-                kernel_code,
+                metadata,
                 branch="main"
             )
             
@@ -305,6 +313,8 @@ class GitHubExecutor:
         
         logger.info(f"Waiting for result: {result_filename}")
         logger.info(f"Timeout: {timeout} seconds")
+        logger.info(f"Looking for result file with timestamp: {timestamp}")
+        logger.info(f"Result type: {result_type}")
         
         while time.time() - start_time < timeout:
             try:
@@ -336,7 +346,16 @@ class GitHubExecutor:
             except GithubException as e:
                 if e.status == 404:
                     # File doesn't exist yet, continue waiting
-                    pass
+                    # Debug: List available result files
+                    try:
+                        results_contents = self.repo.get_contents(self.results_path, ref="main")
+                        available_files = [item.name for item in results_contents if item.name.endswith('.json')]
+                        logger.info(f"Available result files: {available_files}")
+                        logger.info(f"Looking for: {result_filename}")
+                        logger.info(f"Files matching pattern: {[f for f in available_files if str(timestamp) in f]}")
+                    except Exception as debug_e:
+                        logger.warning(f"Debug listing failed: {debug_e}")
+                        pass
                 else:
                     logger.error(f"GitHub API error while waiting: {e}")
                     return {"error": f"GitHub API error: {e}"}

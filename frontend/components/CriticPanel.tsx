@@ -71,7 +71,9 @@ export default function CriticPanel({
     onAnalysisComplete,
 }: CriticPanelProps) {
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-    const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["overview"]));
+    const [expandedSections, setExpandedSections] = useState<Set<string>>(
+        new Set(["gpu_execution"])
+    );
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [llmAnalysisResults, setLlmAnalysisResults] = useState<any>(null);
@@ -378,6 +380,17 @@ export default function CriticPanel({
                 setRealMetrics(result.metrics);
                 setExecutionError(null);
                 console.log("🎉 GPU execution successful!");
+
+                // Update kernel code with corrected version if available
+                if (result.metrics?.corrected_code) {
+                    console.log("✅ Updating kernel code with corrected version");
+                    // Note: This would need to be passed up to parent component
+                    // For now, we'll just log it
+                    console.log(
+                        "Corrected code available:",
+                        result.metrics.corrected_code.substring(0, 100) + "..."
+                    );
+                }
             } else {
                 const errorMsg = result.error || "GPU execution failed";
                 console.error("❌ GPU execution failed:", errorMsg);
@@ -515,6 +528,140 @@ export default function CriticPanel({
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0">
+                {/* Real GPU Execution Section */}
+                <div className="border-b border-gray-200">
+                    <button
+                        onClick={() => toggleSection("gpu_execution")}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                    >
+                        <span className="font-medium text-gray-900">Real GPU Execution</span>
+                        {expandedSections.has("gpu_execution") ? (
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                        )}
+                    </button>
+                    {expandedSections.has("gpu_execution") && (
+                        <div className="px-4 pb-4">
+                            {/* Execution Controls */}
+                            <div className="p-4 bg-blue-50 rounded-lg mb-4">
+                                <h4 className="font-medium text-blue-900 mb-3">
+                                    Execute on Real GPU
+                                </h4>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <select
+                                        value={executionProvider}
+                                        onChange={(e) => setExecutionProvider(e.target.value)}
+                                        className="text-sm border rounded px-2 py-1"
+                                    >
+                                        <option value="github_colab">Google Colab (GitHub)</option>
+                                    </select>
+                                    <button
+                                        onClick={executeOnGPU}
+                                        disabled={isExecuting || !kernelCode.trim()}
+                                        className="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50 flex items-center gap-1"
+                                    >
+                                        {isExecuting ? (
+                                            <>
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                Executing...
+                                            </>
+                                        ) : (
+                                            "Run on GPU"
+                                        )}
+                                    </button>
+                                </div>
+
+                                {executionError && (
+                                    <div className="text-red-600 text-sm mb-2">
+                                        ❌ {executionError}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Results Display */}
+                            {!realMetrics ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    <div className="text-sm">No GPU execution data available</div>
+                                    <div className="text-xs mt-1">
+                                        Click "Run on GPU" above to execute the kernel
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="text-center p-3 bg-green-50 rounded-lg">
+                                            <div className="text-2xl font-bold text-green-600">
+                                                {realMetrics.performance_score || "N/A"}
+                                            </div>
+                                            <div className="text-xs text-gray-600">
+                                                Performance Score
+                                            </div>
+                                        </div>
+                                        <div className="text-center p-3 bg-blue-50 rounded-lg">
+                                            <div className="text-2xl font-bold text-blue-600">
+                                                {realMetrics.total_flops
+                                                    ? realMetrics.total_flops.toLocaleString()
+                                                    : "N/A"}
+                                            </div>
+                                            <div className="text-xs text-gray-600">Total FLOPs</div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="text-center p-3 bg-purple-50 rounded-lg">
+                                            <div className="text-lg font-semibold text-purple-700">
+                                                {realMetrics.execution_time?.toFixed(2) || "N/A"} ms
+                                            </div>
+                                            <div className="text-xs text-gray-600">
+                                                Execution Time
+                                            </div>
+                                        </div>
+                                        <div className="text-center p-3 bg-orange-50 rounded-lg">
+                                            <div className="text-lg font-semibold text-orange-700">
+                                                {realMetrics.bound_type || "N/A"}
+                                            </div>
+                                            <div className="text-xs text-gray-600">Bound Type</div>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="text-center p-3 bg-indigo-50 rounded-lg">
+                                            <div className="text-lg font-semibold text-indigo-700">
+                                                {realMetrics.throughput
+                                                    ? realMetrics.throughput.toExponential(2)
+                                                    : "N/A"}
+                                            </div>
+                                            <div className="text-xs text-gray-600">
+                                                Throughput (FLOPs/s)
+                                            </div>
+                                        </div>
+                                        <div className="text-center p-3 bg-pink-50 rounded-lg">
+                                            <div className="text-lg font-semibold text-pink-700">
+                                                {realMetrics.memory_usage
+                                                    ? (
+                                                          realMetrics.memory_usage /
+                                                          1024 /
+                                                          1024
+                                                      ).toFixed(2)
+                                                    : "N/A"}{" "}
+                                                MB
+                                            </div>
+                                            <div className="text-xs text-gray-600">
+                                                Memory Usage
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {realMetrics.hardware && (
+                                        <div className="text-center text-xs text-gray-500 mt-2">
+                                            Hardware: {realMetrics.hardware} | GPU Utilization:{" "}
+                                            {realMetrics.gpu_utilization?.toFixed(1) || "N/A"}%
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
                 {/* Overview Section */}
                 <div className="border-b border-gray-200">
                     <button
@@ -533,13 +680,16 @@ export default function CriticPanel({
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                                     <div className="text-2xl font-bold text-primary-600">
-                                        {analysisResult.score}
+                                        {realMetrics?.performance_score ||
+                                            analysisResult?.score ||
+                                            "N/A"}
                                     </div>
                                     <div className="text-xs text-gray-600">Overall Score</div>
                                 </div>
                                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                                     <div className="text-2xl font-bold text-blue-600">
-                                        {analysisResult.performance.flops_total?.toFixed(0) ||
+                                        {realMetrics?.total_flops?.toFixed(0) ||
+                                            analysisResult?.performance?.flops_total?.toFixed(0) ||
                                             "N/A"}
                                     </div>
                                     <div className="text-xs text-gray-600">Total FLOPs</div>
@@ -548,20 +698,170 @@ export default function CriticPanel({
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                                     <div className="text-lg font-semibold text-gray-700">
-                                        {analysisResult.performance.estimated_runtime_ms?.toFixed(
-                                            2
-                                        ) || "N/A"}
+                                        {realMetrics?.execution_time?.toFixed(2) ||
+                                            analysisResult?.performance?.estimated_runtime_ms?.toFixed(
+                                                2
+                                            ) ||
+                                            "N/A"}
                                         ms
                                     </div>
                                     <div className="text-xs text-gray-600">Est. Runtime</div>
                                 </div>
                                 <div className="text-center p-3 bg-gray-50 rounded-lg">
                                     <div className="text-lg font-semibold text-gray-700">
-                                        {analysisResult.performance.bound || "N/A"}
+                                        {realMetrics?.bound_type ||
+                                            analysisResult?.performance?.bound ||
+                                            "N/A"}
                                     </div>
                                     <div className="text-xs text-gray-600">Bound Type</div>
                                 </div>
                             </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Performance Section */}
+                <div className="border-b border-gray-200">
+                    <button
+                        onClick={() => toggleSection("performance")}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
+                    >
+                        <span className="font-medium text-gray-900">Performance</span>
+                        {expandedSections.has("performance") ? (
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                        ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                        )}
+                    </button>
+                    {expandedSections.has("performance") && (
+                        <div className="px-4 pb-4 space-y-3">
+                            {!realMetrics ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    <div className="text-sm">No performance data available</div>
+                                    <div className="text-xs mt-1">
+                                        Execute kernel to see real performance metrics
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {/* Memory Usage */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-3 bg-blue-50 rounded-lg">
+                                            <div className="text-sm font-medium text-blue-700">
+                                                Memory Usage
+                                            </div>
+                                            <div className="text-lg font-semibold text-blue-900">
+                                                {realMetrics.memory_usage
+                                                    ? (
+                                                          realMetrics.memory_usage /
+                                                          1024 /
+                                                          1024
+                                                      ).toFixed(2)
+                                                    : "N/A"}{" "}
+                                                MB
+                                            </div>
+                                            <div className="text-xs text-blue-600">
+                                                {realMetrics.memory_usage
+                                                    ? realMetrics.memory_usage.toLocaleString()
+                                                    : "N/A"}{" "}
+                                                bytes
+                                            </div>
+                                        </div>
+                                        <div className="p-3 bg-green-50 rounded-lg">
+                                            <div className="text-sm font-medium text-green-700">
+                                                GPU Utilization
+                                            </div>
+                                            <div className="text-lg font-semibold text-green-900">
+                                                {realMetrics.gpu_utilization?.toFixed(1) || "N/A"}%
+                                            </div>
+                                            <div className="text-xs text-green-600">
+                                                Hardware: {realMetrics.hardware || "N/A"}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Optimizations */}
+                                    <div className="p-3 bg-purple-50 rounded-lg">
+                                        <div className="text-sm font-medium text-purple-700 mb-2">
+                                            Optimizations
+                                        </div>
+                                        <div className="flex flex-wrap gap-2">
+                                            {realMetrics.optimizations?.map(
+                                                (opt: string, index: number) => (
+                                                    <span
+                                                        key={index}
+                                                        className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded"
+                                                    >
+                                                        {opt}
+                                                    </span>
+                                                )
+                                            ) || (
+                                                <span className="text-gray-500 text-sm">
+                                                    None detected
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Vectorization & Bound Type */}
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-3 bg-orange-50 rounded-lg">
+                                            <div className="text-sm font-medium text-orange-700">
+                                                Vectorization
+                                            </div>
+                                            <div className="text-lg font-semibold text-orange-900">
+                                                {realMetrics.vectorization || "N/A"}
+                                            </div>
+                                        </div>
+                                        <div className="p-3 bg-indigo-50 rounded-lg">
+                                            <div className="text-sm font-medium text-indigo-700">
+                                                Bound Type
+                                            </div>
+                                            <div className="text-lg font-semibold text-indigo-900">
+                                                {realMetrics.bound_type || "N/A"}
+                                            </div>
+                                            {realMetrics.arithmetic_intensity && (
+                                                <div className="text-xs text-indigo-600">
+                                                    Intensity:{" "}
+                                                    {realMetrics.arithmetic_intensity.toFixed(2)}{" "}
+                                                    FLOPs/byte
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Kernel Details */}
+                                    <div className="p-3 bg-gray-50 rounded-lg">
+                                        <div className="text-sm font-medium text-gray-700 mb-2">
+                                            Kernel Details
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 text-sm">
+                                            <div>
+                                                <span className="text-gray-600">Name:</span>
+                                                <span className="ml-2 font-medium">
+                                                    {realMetrics.kernel_name || "N/A"}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span className="text-gray-600">Provider:</span>
+                                                <span className="ml-2 font-medium">
+                                                    {realMetrics.provider || "N/A"}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        {realMetrics.kernel_parameters && (
+                                            <div className="mt-2 text-sm">
+                                                <span className="text-gray-600">Parameters:</span>
+                                                <span className="ml-2 font-medium">
+                                                    {Object.entries(realMetrics.kernel_parameters)
+                                                        .map(([key, value]) => `${key}: ${value}`)
+                                                        .join(", ")}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -1933,178 +2233,6 @@ export default function CriticPanel({
                                         </div>
                                     );
                                 })}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Performance Section */}
-                <div className="border-b border-gray-200">
-                    <button
-                        onClick={() => toggleSection("performance")}
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                        <span className="font-medium text-gray-900">Performance</span>
-                        {expandedSections.has("performance") ? (
-                            <ChevronDown className="w-4 h-4 text-gray-400" />
-                        ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-400" />
-                        )}
-                    </button>
-                    {expandedSections.has("performance") && (
-                        <div className="px-4 pb-4 space-y-3">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-sm font-medium text-gray-700">
-                                        Memory Usage
-                                    </div>
-                                    <div className="text-lg font-semibold text-gray-900">
-                                        {analysisResult.performance.shared_mem_per_block_bytes
-                                            ? (
-                                                  analysisResult.performance
-                                                      .shared_mem_per_block_bytes / 1024
-                                              ).toFixed(1)
-                                            : "N/A"}{" "}
-                                        KB
-                                    </div>
-                                </div>
-                                <div className="p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-sm font-medium text-gray-700">
-                                        Optimizations
-                                    </div>
-                                    <div className="text-sm text-gray-600">
-                                        {[
-                                            analysisResult.performance.tiling_detected && "Tiling",
-                                            analysisResult.performance.vectorization_detected &&
-                                                "Vectorization",
-                                            analysisResult.performance.tensor_core_usage_detected &&
-                                                "Tensor Cores",
-                                            analysisResult.performance.loop_unrolling_detected &&
-                                                "Loop Unrolling",
-                                        ]
-                                            .filter(Boolean)
-                                            .join(", ") || "None detected"}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* GPU Execution Section */}
-                <div className="border-b border-gray-200">
-                    <button
-                        onClick={() => toggleSection("gpu-execution")}
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                        <span className="font-medium text-gray-900">Real GPU Execution</span>
-                        {expandedSections.has("gpu-execution") ? (
-                            <ChevronDown className="w-4 h-4 text-gray-400" />
-                        ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-400" />
-                        )}
-                    </button>
-                    {expandedSections.has("gpu-execution") && (
-                        <div className="px-4 pb-4 space-y-4">
-                            <div className="p-4 bg-blue-50 rounded-lg">
-                                <h4 className="font-medium text-blue-900 mb-3">
-                                    Execute on Real GPU
-                                </h4>
-                                <div className="flex items-center gap-2 mb-3">
-                                    <select
-                                        value={executionProvider}
-                                        onChange={(e) => setExecutionProvider(e.target.value)}
-                                        className="text-sm border rounded px-2 py-1"
-                                    >
-                                        <option value="github_colab">Google Colab (GitHub)</option>
-                                    </select>
-                                    <button
-                                        onClick={executeOnGPU}
-                                        disabled={isExecuting || !kernelCode.trim()}
-                                        className="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50 flex items-center gap-1"
-                                    >
-                                        {isExecuting ? (
-                                            <>
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                                Executing...
-                                            </>
-                                        ) : (
-                                            "Run on GPU"
-                                        )}
-                                    </button>
-                                </div>
-
-                                {executionError && (
-                                    <div className="mt-2 p-2 bg-red-100 border border-red-300 rounded text-sm text-red-700">
-                                        <div className="flex items-center gap-1">
-                                            <XCircle className="w-4 h-4" />
-                                            {executionError}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {realMetrics && (
-                                    <div className="mt-3 space-y-2">
-                                        <h5 className="font-medium text-blue-900 text-sm">
-                                            Execution Results:
-                                        </h5>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">Provider:</span>
-                                                <span className="font-medium">
-                                                    {realMetrics.provider || "N/A"}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">Status:</span>
-                                                <span className="font-medium text-green-600">
-                                                    {realMetrics.status || "Completed"}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">
-                                                    Execution Time:
-                                                </span>
-                                                <span className="font-medium">
-                                                    {realMetrics.execution_time?.toFixed(2) ||
-                                                        "N/A"}
-                                                    ms
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">
-                                                    GPU Utilization:
-                                                </span>
-                                                <span className="font-medium">
-                                                    {realMetrics.gpu_utilization?.toFixed(1) ||
-                                                        "N/A"}
-                                                    %
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">Memory Usage:</span>
-                                                <span className="font-medium">
-                                                    {realMetrics.memory_usage?.toFixed(0) || "N/A"}
-                                                    MB
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-gray-600">Throughput:</span>
-                                                <span className="font-medium">
-                                                    {realMetrics.throughput
-                                                        ? realMetrics.throughput.toExponential(2)
-                                                        : "N/A"}{" "}
-                                                    ops/s
-                                                </span>
-                                            </div>
-                                        </div>
-                                        {realMetrics.hardware && (
-                                            <div className="text-xs text-gray-500 mt-2">
-                                                Hardware: {realMetrics.hardware}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </div>
                         </div>
                     )}

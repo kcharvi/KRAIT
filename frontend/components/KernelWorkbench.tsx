@@ -82,6 +82,14 @@ export default function KernelWorkbench() {
                 "// Write your custom kernel code here\nimport torch\nimport torch.nn as nn\n\nclass CustomKernel(nn.Module):\n    def __init__(self):\n        super().__init__()\n        \n    def forward(self, x):\n        return x"
             );
         }
+
+        // Reset compilation state when problem changes (new problem = new compilation needed)
+        if (selectedProblem) {
+            setCompilationStatus("idle");
+            setCompilationError("");
+            setCompilationAttempts(0);
+            setIsCompiling(false);
+        }
     }, [selectedProblem, customCode]);
 
     const generateKernel = async () => {
@@ -99,6 +107,12 @@ export default function KernelWorkbench() {
 
         setIsGenerating(true);
         setGeneratedCode("");
+
+        // Reset compilation state when generating new code
+        setCompilationStatus("idle");
+        setCompilationError("");
+        setCompilationAttempts(0);
+        setIsCompiling(false);
 
         try {
             const requestBody = {
@@ -289,7 +303,14 @@ export default function KernelWorkbench() {
                             <select
                                 className="border border-gray-300 rounded-md px-2 py-1 text-sm"
                                 value={backend}
-                                onChange={(e) => setBackend(e.target.value)}
+                                onChange={(e) => {
+                                    setBackend(e.target.value);
+                                    // Reset compilation state when backend changes
+                                    setCompilationStatus("idle");
+                                    setCompilationError("");
+                                    setCompilationAttempts(0);
+                                    setIsCompiling(false);
+                                }}
                             >
                                 <option>CUDA</option>
                                 <option>Triton</option>
@@ -298,7 +319,14 @@ export default function KernelWorkbench() {
                             <select
                                 className="border border-gray-300 rounded-md px-2 py-1 text-sm"
                                 value={hardware}
-                                onChange={(e) => setHardware(e.target.value)}
+                                onChange={(e) => {
+                                    setHardware(e.target.value);
+                                    // Reset compilation state when hardware changes
+                                    setCompilationStatus("idle");
+                                    setCompilationError("");
+                                    setCompilationAttempts(0);
+                                    setIsCompiling(false);
+                                }}
                             >
                                 <option>NVIDIA A100</option>
                                 <option>NVIDIA H100</option>
