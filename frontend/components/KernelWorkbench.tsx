@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, Send, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Problem, parseProblemMDX } from "../utils/parseMDX";
 import CriticPanel from "./CriticPanel";
 
@@ -41,8 +41,6 @@ export default function KernelWorkbench() {
     const [problems, setProblems] = useState<Problem[]>([]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isLoadingProblems, setIsLoadingProblems] = useState(true);
-    const [customCode, setCustomCode] = useState<string>("");
-    const [isCustomProblem, setIsCustomProblem] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedCode, setGeneratedCode] = useState<string>("");
     const [isCompiling, setIsCompiling] = useState(false);
@@ -82,16 +80,7 @@ export default function KernelWorkbench() {
                 }
             }
 
-            // Add custom problem option
-            const customProblem: Problem = {
-                id: "custom",
-                name: "Custom Problem",
-                code: "",
-                description: "Write your own custom kernel code",
-                requirements: [],
-            };
-
-            setProblems([...loadedProblems, customProblem]);
+            setProblems(loadedProblems);
             setIsLoadingProblems(false);
         };
 
@@ -99,18 +88,10 @@ export default function KernelWorkbench() {
     }, []);
 
     const selectedProblemData = problems.find((p) => p.id === selectedProblem);
-    const currentCode = isCustomProblem ? customCode : selectedProblemData?.code || "";
+    const currentCode = selectedProblemData?.code || "";
 
-    // Update custom problem state when selection changes
+    // Reset compilation state when problem changes (new problem = new compilation needed)
     useEffect(() => {
-        setIsCustomProblem(selectedProblem === "custom");
-        if (selectedProblem === "custom" && !customCode) {
-            setCustomCode(
-                "// Write your custom kernel code here\nimport torch\nimport torch.nn as nn\n\nclass CustomKernel(nn.Module):\n    def __init__(self):\n        super().__init__()\n        \n    def forward(self, x):\n        return x"
-            );
-        }
-
-        // Reset compilation state when problem changes (new problem = new compilation needed)
         if (selectedProblem) {
             setCompilationStatus("idle");
             setCompilationError("");
@@ -119,7 +100,7 @@ export default function KernelWorkbench() {
             // Clear generated code when problem changes
             setGeneratedCode("");
         }
-    }, [selectedProblem, customCode]);
+    }, [selectedProblem]);
 
     const generateKernel = async () => {
         if (!selectedProblem || !currentCode.trim() || !prompt.trim()) {
@@ -321,7 +302,7 @@ export default function KernelWorkbench() {
     };
 
     return (
-        <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-1.5 p-1.5">
             {/* Left column */}
             <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full min-h-0">
                 {/* Sticky header with dropdowns */}
@@ -370,6 +351,96 @@ export default function KernelWorkbench() {
                                 <option disabled>AMD</option>
                             </select>
                         </div>
+                    </div>
+                </div>
+
+                {/* Top prompt composer */}
+                <div className="border-b border-gray-200 p-4 space-y-4 flex-shrink-0">
+                    {/* Problem Selector Dropdown */}
+                    <div className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white text-left focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                            <span className="text-sm text-gray-700">
+                                {isLoadingProblems
+                                    ? "Loading problems..."
+                                    : selectedProblemData
+                                    ? selectedProblemData.name
+                                    : "Select a problem..."}
+                            </span>
+                            {isDropdownOpen ? (
+                                <ChevronUp className="h-4 w-4 text-gray-400" />
+                            ) : (
+                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                            )}
+                        </button>
+
+                        {isDropdownOpen && !isLoadingProblems && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
+                                {problems.map((problem) => (
+                                    <button
+                                        key={problem.id}
+                                        type="button"
+                                        onClick={() => {
+                                            setSelectedProblem(problem.id);
+                                            setIsDropdownOpen(false);
+                                        }}
+                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+                                    >
+                                        {problem.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Code Block Display */}
+                    {selectedProblem && currentCode && (
+                        <div className="bg-gray-900 rounded-lg p-3 h-24 overflow-y-auto">
+                            <pre className="text-xs text-green-400 font-mono leading-tight whitespace-pre">
+                                <code>{currentCode}</code>
+                            </pre>
+                        </div>
+                    )}
+                    {selectedProblem && !currentCode && (
+                        <div className="bg-gray-100 rounded-lg p-3 h-24 flex items-center justify-center text-sm text-gray-500">
+                            No code available for this problem
+                        </div>
+                    )}
+                    {!selectedProblem && (
+                        <div className="bg-gray-100 rounded-lg p-3 h-24 flex items-center justify-center text-sm text-gray-500">
+                            Select a problem to view code
+                        </div>
+                    )}
+
+                    {/* Prompt Input */}
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="text"
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            placeholder="Describe the kernel you want to generate…"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        />
+                        <button
+                            className="px-4 py-2 flex items-center gap-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Generate Kernel"
+                            onClick={generateKernel}
+                            disabled={
+                                isGenerating ||
+                                !selectedProblem ||
+                                !currentCode.trim() ||
+                                !prompt.trim()
+                            }
+                        >
+                            {isGenerating ? (
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                                <span className="text-sm">Generate</span>
+                            )}
+                        </button>
                     </div>
                 </div>
 
@@ -449,39 +520,37 @@ export default function KernelWorkbench() {
                                 </div>
                             </div>
                             <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-700 min-h-0">
-                                <div className="h-full overflow-auto">
-                                    <pre className="text-sm text-green-400 font-mono leading-relaxed p-4 whitespace-pre">
-                                        <code>
-                                            {generatedCode.split("\n").map((line, index) => (
-                                                <div key={index} className="flex hover:bg-gray-800">
-                                                    <span className="text-gray-500 mr-4 select-none w-8 text-right flex-shrink-0">
-                                                        {index + 1}
-                                                    </span>
-                                                    <span className="flex-1 text-gray-100">
+                                <div className="h-full flex">
+                                    {/* Fixed line numbers */}
+                                    <div className="bg-gray-800 text-gray-500 text-sm font-mono leading-relaxed p-4 pr-2 flex-shrink-0">
+                                        {generatedCode.split("\n").map((_, index) => (
+                                            <div key={index} className="text-right w-8">
+                                                {index + 1}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* Scrollable code content */}
+                                    <div className="flex-1 overflow-auto">
+                                        <pre className="text-sm text-green-400 font-mono leading-relaxed p-4 pl-2 whitespace-pre min-w-full">
+                                            <code>
+                                                {generatedCode.split("\n").map((line, index) => (
+                                                    <div key={index} className="hover:bg-gray-800">
                                                         {line}
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </code>
-                                    </pre>
+                                                    </div>
+                                                ))}
+                                            </code>
+                                        </pre>
+                                    </div>
                                 </div>
                             </div>
                             {!supportsCompilation && (
-                                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                    <div className="flex items-start">
-                                        <div className="flex-shrink-0">
-                                            <div className="w-4 h-4 text-yellow-500">⚠️</div>
-                                        </div>
-                                        <div className="ml-3">
-                                            <h4 className="text-sm font-medium text-yellow-800">
-                                                Compilation Currently Unavailable
-                                            </h4>
-                                            <div className="mt-1 text-sm text-yellow-700">
-                                                {backend} backend does not support compilation and
-                                                execution yet. You can still generate kernel code
-                                                using the Generate button.
-                                            </div>
-                                        </div>
+                                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <div className="flex items-center">
+                                        <div className="w-4 h-4 text-yellow-500 mr-2">⚠️</div>
+                                        <span className="text-sm text-yellow-700">
+                                            {backend} compilation unavailable - Generate button
+                                            still works
+                                        </span>
                                     </div>
                                 </div>
                             )}
@@ -492,22 +561,25 @@ export default function KernelWorkbench() {
                                             <div className="w-4 h-4 text-red-500">❌</div>
                                         </div>
                                         <div className="ml-3 flex-1">
-                                            <h4 className="text-sm font-medium text-red-800">
-                                                Compilation Error
-                                            </h4>
-                                            <div className="mt-1 text-sm text-red-700">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h4 className="text-sm font-medium text-red-800">
+                                                    Compilation Error
+                                                </h4>
+                                                {compilationAttempts < maxCompilationAttempts && (
+                                                    <span className="text-xs text-red-600">
+                                                        🔧 Attempting to fix automatically... (
+                                                        {compilationAttempts}/
+                                                        {maxCompilationAttempts})
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-sm text-red-700">
                                                 <div className="bg-red-100 border border-red-300 rounded p-2 max-h-20 overflow-y-auto">
                                                     <pre className="whitespace-pre-wrap font-mono text-xs leading-tight">
                                                         {compilationError}
                                                     </pre>
                                                 </div>
                                             </div>
-                                            {compilationAttempts < maxCompilationAttempts && (
-                                                <div className="mt-2 text-xs text-red-600 bg-red-100 border border-red-300 rounded p-2">
-                                                    🔧 Attempting to fix automatically... (
-                                                    {compilationAttempts}/{maxCompilationAttempts})
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -527,116 +599,16 @@ export default function KernelWorkbench() {
                         </div>
                     )}
                 </div>
-
-                {/* Bottom prompt composer */}
-                <div className="border-t border-gray-200 p-4 space-y-4 flex-shrink-0">
-                    {/* Problem Selector Dropdown */}
-                    <div className="relative">
-                        <button
-                            type="button"
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white text-left focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        >
-                            <span className="text-sm text-gray-700">
-                                {isLoadingProblems
-                                    ? "Loading problems..."
-                                    : selectedProblemData
-                                    ? selectedProblemData.name
-                                    : "Select a problem..."}
-                            </span>
-                            {isDropdownOpen ? (
-                                <ChevronUp className="h-4 w-4 text-gray-400" />
-                            ) : (
-                                <ChevronDown className="h-4 w-4 text-gray-400" />
-                            )}
-                        </button>
-
-                        {isDropdownOpen && !isLoadingProblems && (
-                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">
-                                {problems.map((problem) => (
-                                    <button
-                                        key={problem.id}
-                                        type="button"
-                                        onClick={() => {
-                                            setSelectedProblem(problem.id);
-                                            setIsDropdownOpen(false);
-                                        }}
-                                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
-                                    >
-                                        {problem.name}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Code Block Display */}
-                    {selectedProblem && currentCode && (
-                        <div className="bg-gray-900 rounded-lg p-3 h-24 overflow-y-auto">
-                            {isCustomProblem ? (
-                                <textarea
-                                    value={customCode}
-                                    onChange={(e) => setCustomCode(e.target.value)}
-                                    className="w-full h-full bg-transparent text-green-400 font-mono text-xs leading-tight resize-none border-none outline-none"
-                                    placeholder="Write your custom kernel code here..."
-                                />
-                            ) : (
-                                <pre className="text-xs text-green-400 font-mono leading-tight whitespace-pre">
-                                    <code>{currentCode}</code>
-                                </pre>
-                            )}
-                        </div>
-                    )}
-                    {selectedProblem && !currentCode && (
-                        <div className="bg-gray-100 rounded-lg p-3 h-24 flex items-center justify-center text-sm text-gray-500">
-                            {isCustomProblem
-                                ? "Start writing your custom code..."
-                                : "No code available for this problem"}
-                        </div>
-                    )}
-                    {!selectedProblem && (
-                        <div className="bg-gray-100 rounded-lg p-3 h-24 flex items-center justify-center text-sm text-gray-500">
-                            Select a problem to view code
-                        </div>
-                    )}
-
-                    {/* Prompt Input */}
-                    <div className="flex items-end gap-2">
-                        <textarea
-                            rows={2}
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            placeholder="Describe the kernel you want to generate…"
-                            className="flex-1 resize-none px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                        />
-                        <button
-                            className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary-500 hover:bg-primary-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Generate Kernel"
-                            onClick={generateKernel}
-                            disabled={
-                                isGenerating ||
-                                !selectedProblem ||
-                                !currentCode.trim() ||
-                                !prompt.trim()
-                            }
-                        >
-                            {isGenerating ? (
-                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                                <Send className="h-5 w-5" />
-                            )}
-                        </button>
-                    </div>
-                </div>
             </div>
 
             {/* Right column - Critic Agent */}
-            <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 h-full min-h-0">
+            <div className="h-full min-h-0">
                 <CriticPanel
                     kernelCode={generatedCode}
                     hardware={hardware}
                     backend={backend}
                     isAnalyzing={false}
+                    compilationStatus={compilationStatus}
                     onAnalysisComplete={(result) => {
                         console.log("Critic analysis completed:", result);
                     }}

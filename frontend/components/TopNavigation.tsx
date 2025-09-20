@@ -29,7 +29,7 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
             name: "Visualizations",
             icon: BarChart3,
             description: "Performance charts and graphs",
-        },        
+        },
     ];
 
     const activeTabData = tabs.find((tab) => tab.id === activeTab);
@@ -37,14 +37,14 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
     return (
         <nav className="bg-white border-b border-gray-200 shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-16">
+                <div className="flex justify-between h-12">
                     {/* Logo/Brand */}
                     <div className="flex items-center">
                         <div className="flex-shrink-0 flex items-center">
-                            <div className="h-8 w-8 flex items-center justify-center bg-blue-600 text-white rounded">
-                                <span className="font-bold text-lg">⛎</span>
+                            <div className="h-6 w-6 flex items-center justify-center bg-primary-600 text-white rounded">
+                                <span className="font-bold text-sm">⛎</span>
                             </div>
-                            <span className="ml-2 text-xl font-bold text-gray-900">KRAIT</span>
+                            <span className="ml-2 text-lg font-bold text-gray-900">KRAIT</span>
                         </div>
                     </div>
 
@@ -56,13 +56,13 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
                                 <button
                                     key={tab.id}
                                     onClick={() => onTabChange(tab.id)}
-                                    className={`flex items-center px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                    className={`flex items-center px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                                         activeTab === tab.id
                                             ? "bg-blue-100 text-blue-700 border-b-2 border-blue-500"
                                             : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                                     }`}
                                 >
-                                    <Icon className="h-4 w-4 mr-2" />
+                                    <Icon className="h-3 w-3 mr-1.5" />
                                     {tab.name}
                                 </button>
                             );

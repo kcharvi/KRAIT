@@ -60,6 +60,7 @@ interface CriticPanelProps {
     hardware: string;
     backend: string;
     isAnalyzing: boolean;
+    compilationStatus: "idle" | "compiling" | "success" | "error";
     onAnalysisComplete?: (result: AnalysisResult) => void;
 }
 
@@ -68,6 +69,7 @@ export default function CriticPanel({
     hardware,
     backend,
     isAnalyzing,
+    compilationStatus,
     onAnalysisComplete,
 }: CriticPanelProps) {
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
@@ -421,7 +423,7 @@ export default function CriticPanel({
 
     if (isLoading) {
         return (
-            <div className="h-full flex flex-col bg-white overflow-hidden">
+            <div className="h-full flex flex-col bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="flex-1 flex items-center justify-center overflow-y-auto scrollbar-hide">
                     <div className="text-center">
                         <Loader2 className="w-8 h-8 animate-spin text-primary-500 mx-auto mb-2" />
@@ -434,7 +436,7 @@ export default function CriticPanel({
 
     if (error) {
         return (
-            <div className="h-full flex flex-col bg-white overflow-hidden">
+            <div className="h-full flex flex-col bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 <div className="flex-1 flex items-center justify-center overflow-y-auto scrollbar-hide">
                     <div className="text-center">
                         <XCircle className="w-8 h-8 text-red-500 mx-auto mb-2" />
@@ -454,7 +456,7 @@ export default function CriticPanel({
 
     if (!analysisResult) {
         return (
-            <div className="h-full flex flex-col bg-white overflow-hidden">
+            <div className="h-full flex flex-col bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                     <h3 className="text-sm font-semibold text-gray-900">Critic and Analysis </h3>
@@ -495,30 +497,23 @@ export default function CriticPanel({
     }
 
     return (
-        <div className="h-full flex flex-col bg-white overflow-hidden min-h-0">
+        <div className="h-full flex flex-col bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden min-h-0">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
                 <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-gray-900">Critic and Analysis </h3>
-                    <div
-                        className={`px-2 py-1 text-xs rounded-full ${getCorrectnessStatusColor(
-                            analysisResult.correctness.status
-                        )}`}
-                    >
-                        {analysisResult.correctness.status.replace("_", " ").toUpperCase()}
-                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900">Critic and Analysis</h3>
                 </div>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={analyzeKernel}
-                        className="p-1 text-gray-400 hover:text-gray-600"
+                        className="px-2 py-1.5 text-gray-400 hover:text-gray-600"
                         title="Refresh Analysis"
                     >
                         <RefreshCw className="w-4 h-4" />
                     </button>
                     <button
                         onClick={exportResults}
-                        className="p-1 text-gray-400 hover:text-gray-600"
+                        className="px-2 py-1.5 text-gray-400 hover:text-gray-600"
                         title="Export Results"
                     >
                         <Download className="w-4 h-4" />
@@ -558,7 +553,11 @@ export default function CriticPanel({
                                     </select>
                                     <button
                                         onClick={executeOnGPU}
-                                        disabled={isExecuting || !kernelCode.trim()}
+                                        disabled={
+                                            isExecuting ||
+                                            !kernelCode.trim() ||
+                                            compilationStatus !== "success"
+                                        }
                                         className="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50 flex items-center gap-1"
                                     >
                                         {isExecuting ? (
@@ -570,6 +569,19 @@ export default function CriticPanel({
                                             "Run on GPU"
                                         )}
                                     </button>
+                                </div>
+
+                                {/* Side note */}
+                                <div className="text-xs text-gray-600 mt-2">
+                                    {compilationStatus !== "success" ? (
+                                        <span className="text-amber-600">
+                                            ⚠️ Kernel must be successfully compiled before execution
+                                        </span>
+                                    ) : (
+                                        <span className="text-green-600">
+                                            ✅ Ready to execute on real GPU hardware
+                                        </span>
+                                    )}
                                 </div>
 
                                 {executionError && (
