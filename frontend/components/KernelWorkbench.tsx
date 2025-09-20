@@ -116,6 +116,8 @@ export default function KernelWorkbench() {
             setCompilationError("");
             setCompilationAttempts(0);
             setIsCompiling(false);
+            // Clear generated code when problem changes
+            setGeneratedCode("");
         }
     }, [selectedProblem, customCode]);
 
@@ -337,6 +339,8 @@ export default function KernelWorkbench() {
                                     setCompilationError("");
                                     setCompilationAttempts(0);
                                     setIsCompiling(false);
+                                    // Clear generated code when backend changes
+                                    setGeneratedCode("");
                                 }}
                             >
                                 <option>CUDA</option>
@@ -353,6 +357,8 @@ export default function KernelWorkbench() {
                                     setCompilationError("");
                                     setCompilationAttempts(0);
                                     setIsCompiling(false);
+                                    // Clear generated code when hardware changes
+                                    setGeneratedCode("");
                                 }}
                             >
                                 {supportedHardware.map((hw) => (
@@ -485,18 +491,20 @@ export default function KernelWorkbench() {
                                         <div className="flex-shrink-0">
                                             <div className="w-4 h-4 text-red-500">❌</div>
                                         </div>
-                                        <div className="ml-3">
+                                        <div className="ml-3 flex-1">
                                             <h4 className="text-sm font-medium text-red-800">
                                                 Compilation Error
                                             </h4>
                                             <div className="mt-1 text-sm text-red-700">
-                                                <pre className="whitespace-pre-wrap font-mono text-xs">
-                                                    {compilationError}
-                                                </pre>
+                                                <div className="bg-red-100 border border-red-300 rounded p-2 max-h-20 overflow-y-auto">
+                                                    <pre className="whitespace-pre-wrap font-mono text-xs leading-tight">
+                                                        {compilationError}
+                                                    </pre>
+                                                </div>
                                             </div>
                                             {compilationAttempts < maxCompilationAttempts && (
-                                                <div className="mt-2 text-xs text-red-600">
-                                                    Attempting to fix automatically... (
+                                                <div className="mt-2 text-xs text-red-600 bg-red-100 border border-red-300 rounded p-2">
+                                                    🔧 Attempting to fix automatically... (
                                                     {compilationAttempts}/{maxCompilationAttempts})
                                                 </div>
                                             )}
