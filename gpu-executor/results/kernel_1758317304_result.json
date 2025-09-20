@@ -1,6 +1,0 @@
-{
-  "success": false,
-  "error": "Execution failed: CUDA kernel launch failed: the provided PTX was compiled with an unsupported toolchain.\n",
-  "provider": "colab",
-  "timestamp": 1758317307.4214177
-}
