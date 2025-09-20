@@ -1,6 +1,0 @@
-{
-  "success": false,
-  "error": "Execution failed: CUDA error: invalid configuration argument\n",
-  "provider": "colab",
-  "timestamp": 1758322987.9600766
-}
