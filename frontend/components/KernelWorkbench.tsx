@@ -7,7 +7,34 @@ import CriticPanel from "./CriticPanel";
 
 export default function KernelWorkbench() {
     const [backend, setBackend] = useState("CUDA");
-    const [hardware, setHardware] = useState("NVIDIA H100");
+    const [hardware, setHardware] = useState("NVIDIA T4");
+
+    // Define which backends support compilation and execution
+    const supportsCompilation = backend === "CUDA";
+    const supportsExecution = backend === "CUDA";
+
+    // Define supported hardware for each backend
+    const getSupportedHardware = (backend: string) => {
+        switch (backend) {
+            case "CUDA":
+                return ["NVIDIA T4", "CPU"];
+            case "Triton":
+            case "OpenCL":
+                return ["NVIDIA T4", "CPU"]; // Same options but compilation blocked
+            default:
+                return ["NVIDIA T4", "CPU"];
+        }
+    };
+
+    const supportedHardware = getSupportedHardware(backend);
+
+    // Auto-switch hardware when backend changes if current hardware is not supported
+    useEffect(() => {
+        if (!supportedHardware.includes(hardware)) {
+            setHardware(supportedHardware[0]);
+        }
+    }, [backend, supportedHardware, hardware]);
+
     const [attempts, setAttempts] = useState(1);
     const [prompt, setPrompt] = useState("");
     const [selectedProblem, setSelectedProblem] = useState<string>("");
@@ -328,10 +355,13 @@ export default function KernelWorkbench() {
                                     setIsCompiling(false);
                                 }}
                             >
-                                <option>NVIDIA A100</option>
-                                <option>NVIDIA H100</option>
-                                <option>AMD MI300X</option>
-                                <option>CPU</option>
+                                {supportedHardware.map((hw) => (
+                                    <option key={hw} value={hw}>
+                                        {hw}
+                                    </option>
+                                ))}
+                                <option disabled>NVIDIA H100</option>
+                                <option disabled>AMD</option>
                             </select>
                         </div>
                     </div>
@@ -378,18 +408,30 @@ export default function KernelWorkbench() {
                                     <button
                                         onClick={handleCompile}
                                         disabled={
-                                            !generatedCode.trim() || isCompiling || isGenerating
+                                            !generatedCode.trim() ||
+                                            isCompiling ||
+                                            isGenerating ||
+                                            !supportsCompilation
                                         }
                                         className={`px-2 py-1 text-xs rounded text-white ${
-                                            compilationStatus === "success"
+                                            !supportsCompilation
+                                                ? "bg-gray-400 cursor-not-allowed"
+                                                : compilationStatus === "success"
                                                 ? "bg-green-500 hover:bg-green-600"
                                                 : compilationStatus === "error" &&
                                                   compilationAttempts >= maxCompilationAttempts
                                                 ? "bg-red-500 hover:bg-red-600"
                                                 : "bg-blue-500 hover:bg-blue-600"
                                         } disabled:bg-gray-400 disabled:cursor-not-allowed`}
+                                        title={
+                                            !supportsCompilation
+                                                ? "Currently unavailable for this backend"
+                                                : ""
+                                        }
                                     >
-                                        {compilationStatus === "success"
+                                        {!supportsCompilation
+                                            ? "🚫 Blocked"
+                                            : compilationStatus === "success"
                                             ? "✅ Compiled"
                                             : compilationStatus === "error" &&
                                               compilationAttempts >= maxCompilationAttempts
@@ -418,6 +460,25 @@ export default function KernelWorkbench() {
                                     </pre>
                                 </div>
                             </div>
+                            {!supportsCompilation && (
+                                <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <div className="w-4 h-4 text-yellow-500">⚠️</div>
+                                        </div>
+                                        <div className="ml-3">
+                                            <h4 className="text-sm font-medium text-yellow-800">
+                                                Compilation Currently Unavailable
+                                            </h4>
+                                            <div className="mt-1 text-sm text-yellow-700">
+                                                {backend} backend does not support compilation and
+                                                execution yet. You can still generate kernel code
+                                                using the Generate button.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                             {compilationError && (
                                 <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
                                     <div className="flex items-start">
