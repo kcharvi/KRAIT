@@ -161,6 +161,8 @@ class GitHubExecutor:
         # Determine file extension based on backend
         if backend.upper() == "PYTORCH_CUDA_EXTENSION":
             file_extension = ".py"
+            # Apply automatic syntax fixes for PyTorch CUDA extensions
+            kernel_code = self._fix_pytorch_load_inline_syntax(kernel_code)
         else:
             file_extension = ".cu"
         
@@ -226,6 +228,87 @@ class GitHubExecutor:
             error_msg = f"Execution failed: {str(e)}"
             logger.error(error_msg)
             return {"error": error_msg}
+            
+    def _fix_pytorch_load_inline_syntax(self, kernel_code: str) -> str:
+        """Automatically fix common load_inline syntax errors in PyTorch CUDA extensions"""
+        import re
+        
+        logger.info("🔧 Starting load_inline syntax fix...")
+        logger.info(f"🔍 Original code snippet: {kernel_code[:200]}...")
+        
+        # Pattern to find load_inline calls with wrong syntax
+        load_inline_pattern = r'load_inline\s*\(\s*([^)]+)\s*\)'
+        
+        def fix_load_inline_call(match):
+            params_str = match.group(1)
+            logger.info(f"🔍 Found load_inline call with params: {params_str[:100]}...")
+            
+            # Extract parameters using regex
+            name_match = re.search(r'name\s*=\s*["\']([^"\']+)["\']', params_str)
+            cpp_sources_match = re.search(r'cpp_sources\s*=\s*([^,)]+)', params_str)
+            cuda_sources_match = re.search(r'cuda_sources\s*=\s*([^,)]+)', params_str)
+            verbose_match = re.search(r'verbose\s*=\s*([^,)]+)', params_str)
+            
+            if not name_match:
+                logger.info("🔍 No name parameter found, skipping fix")
+                return match.group(0)  # Return original if no name found
+            
+            name = name_match.group(1)
+            verbose = verbose_match.group(1) if verbose_match else "True"
+            
+            logger.info(f"🔍 Extracted name: {name}, verbose: {verbose}")
+            logger.info(f"🔍 cpp_sources found: {bool(cpp_sources_match)}")
+            logger.info(f"🔍 cuda_sources found: {bool(cuda_sources_match)}")
+            
+            # Check if cpp_sources contains kernel code (wrong usage)
+            if cpp_sources_match and cuda_sources_match:
+                cpp_sources = cpp_sources_match.group(1).strip()
+                cuda_sources = cuda_sources_match.group(1).strip()
+                
+                logger.info(f"🔍 cpp_sources: {cpp_sources[:50]}...")
+                logger.info(f"🔍 cuda_sources: {cuda_sources}")
+                
+                # If cpp_sources is not empty string and cuda_sources is empty, swap them
+                if cpp_sources != '""' and cpp_sources != "''" and cuda_sources in ['""', "''", "[]"]:
+                    logger.info(f"🔧 Auto-fixing load_inline syntax: swapping cpp_sources and cuda_sources")
+                    return f'load_inline(\n        name="{name}",\n        cpp_sources="",\n        cuda_sources=[{cpp_sources}],\n        verbose={verbose}\n    )'
+            
+            # Check if cpp_sources contains kernel code but no cuda_sources parameter
+            elif cpp_sources_match and not cuda_sources_match:
+                cpp_sources = cpp_sources_match.group(1).strip()
+                
+                logger.info(f"🔍 cpp_sources only: {cpp_sources[:50]}...")
+                
+                # If cpp_sources is not empty string, move it to cuda_sources
+                if cpp_sources != '""' and cpp_sources != "''":
+                    logger.info(f"🔧 Auto-fixing load_inline syntax: moving cpp_sources to cuda_sources")
+                    return f'load_inline(\n        name="{name}",\n        cpp_sources="",\n        cuda_sources=[{cpp_sources}],\n        verbose={verbose}\n    )'
+            
+            # Check for other wrong parameter names
+            elif re.search(r'source\s*=', params_str):
+                logger.info(f"🔧 Auto-fixing load_inline syntax: removing 'source' parameter")
+                # Remove source parameter and add cuda_sources
+                source_match = re.search(r'source\s*=\s*([^,)]+)', params_str)
+                if source_match:
+                    source_value = source_match.group(1).strip()
+                    # Remove source parameter from params_str
+                    params_str = re.sub(r'source\s*=\s*[^,)]+,?\s*', '', params_str)
+                    return f'load_inline(\n        name="{name}",\n        cpp_sources="",\n        cuda_sources=[{source_value}],\n        verbose={verbose}\n    )'
+            
+            logger.info("🔍 No fixes needed for this load_inline call")
+            return match.group(0)  # Return original if no fixes needed
+        
+        # Apply the fix
+        fixed_code = re.sub(load_inline_pattern, fix_load_inline_call, kernel_code, flags=re.MULTILINE | re.DOTALL)
+        
+        if fixed_code != kernel_code:
+            logger.info("🔧 Applied automatic load_inline syntax fixes")
+            logger.info(f"🔍 Fixed code snippet: {fixed_code[:200]}...")
+        else:
+            logger.info("🔍 No load_inline syntax fixes were needed")
+        
+        return fixed_code
+
     async def compile_kernel_on_colab(
         self, 
         kernel_code: str, 
@@ -257,6 +340,8 @@ class GitHubExecutor:
         # Determine file extension based on backend
         if backend.upper() == "PYTORCH_CUDA_EXTENSION":
             file_extension = ".py"
+            # Apply automatic syntax fixes for PyTorch CUDA extensions
+            kernel_code = self._fix_pytorch_load_inline_syntax(kernel_code)
         else:
             file_extension = ".cu"
         
