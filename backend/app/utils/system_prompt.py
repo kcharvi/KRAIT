@@ -97,6 +97,11 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     elif backend.upper() == "PYTORCH_CUDA_EXTENSION":
         prompt = f"""Generate a Python script that defines a custom CUDA kernel for {hardware} using PyTorch's `load_inline` function.
 
+    🚨 CRITICAL INSTRUCTION: You MUST use this EXACT syntax for load_inline:
+    load_inline(name="module_name", cpp_sources="", cuda_sources=[kernel_string], verbose=True)
+    
+    The kernel code goes in cuda_sources as a LIST, and cpp_sources must be an empty string!
+    
     CRITICAL: Use EXACT load_inline syntax: load_inline(name="...", cpp_sources="", cuda_sources=[kernel_string], verbose=True)
     NEVER use 'source=', 'cuda=True', 'with_cuda=True', or 'extra_cflags=' parameters!
     The kernel code MUST go in cuda_sources as a list, and cpp_sources MUST be an empty string.
@@ -109,6 +114,12 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     - load_inline(name="module", cpp_sources=kernel_string, ...)  # WRONG!
     - load_inline(name="module", cuda_sources=kernel_string, ...)  # WRONG!
     - load_inline(name="module", cuda_sources=kernel_string, cuda=True, ...)  # WRONG!
+    
+    MANDATORY TEST: If you generate code like this, you FAIL:
+    load_inline(name="matmul_cuda", cpp_sources=cuda_kernel, verbose=True)  # THIS IS WRONG!
+    
+    You MUST generate code like this:
+    load_inline(name="matmul_cuda", cpp_sources="", cuda_sources=[cuda_kernel], verbose=True)  # THIS IS CORRECT!
 
     Base code:
     ```python
@@ -150,40 +161,44 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     import torch
     from torch.utils.cpp_extension import load_inline
     
-    # CUDA kernel code
-    kernel_code = \"\"\"
+    # C++ wrapper code (host code) - SEPARATE STRING
+    cpp_code = \"\"\"
     #include <torch/extension.h>
     #define BLOCK_SIZE 32
-    
-    __global__ void your_kernel(...) { ... }
     
     std::vector<torch::Tensor> your_wrapper(...) { ... }
     
     PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { ... }
     \"\"\"
     
+    # CUDA kernel code (device code) - SEPARATE STRING
+    cuda_code = \"\"\"
+    #include <torch/extension.h>
+    
+    __global__ void your_kernel(...) { ... }
+    \"\"\"
+    
     # Load kernel - COPY THIS EXACT FORMAT - DO NOT CHANGE ANYTHING
+    # NOTICE: cpp_sources=cpp_code and cuda_sources=[cuda_code] (SEPARATED!)
     module = load_inline(
         name="your_module",
-        cpp_sources="",
-        cuda_sources=[kernel_code],
+        cpp_sources=cpp_code,      # C++ host code
+        cuda_sources=[cuda_code],  # CUDA device code
         verbose=True
     )
     ```
     
-    CRITICAL: The kernel code goes in cuda_sources=[kernel_code], NOT in cpp_sources!
-    CRITICAL: cpp_sources must be an empty string ""!
+    CRITICAL: SEPARATE C++ wrapper from CUDA kernel into different strings!
+    CRITICAL: cpp_sources=cpp_code (C++ wrapper and Pybind11)
+    CRITICAL: cuda_sources=[cuda_code] (ONLY CUDA kernel)
     CRITICAL: Do NOT use source=, cuda=True, with_cuda=True, or extra_cflags=!
 
-    CUDA Code Structure:
+    CUDA Code Structure (SEPARATE INTO TWO STRINGS):
+    
+    C++ Wrapper Code (for cpp_sources):
     ```cpp
     #include <torch/extension.h>
-
     #define BLOCK_SIZE 32  // Define constants at the top
-
-    __global__ void your_kernel_name(/* parameters */) {{
-        // Kernel implementation
-    }}
 
     std::vector<torch::Tensor> your_wrapper_name(torch::Tensor A, torch::Tensor B) {{
         // Get dimensions
@@ -211,13 +226,44 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     }}
     ```
 
+    CUDA Kernel Code (for cuda_sources):
+    ```cpp
+    #include <torch/extension.h>
+
+    __global__ void your_kernel_name(/* parameters */) {{
+        // Kernel implementation
+    }}
+    ```
+
     Python load_inline Usage (REQUIRED FORMAT - COPY THIS EXACTLY):
     ```python
+    # C++ wrapper code (host code) - SEPARATE STRING
+    cpp_code = \"\"\"
+    #include <torch/extension.h>
+    
+    std::vector<torch::Tensor> your_wrapper_name(torch::Tensor A, torch::Tensor B) {{
+        // C++ wrapper function implementation
+    }}
+    
+    PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {{
+        m.def("your_wrapper_name", &your_wrapper_name, "Description");
+    }}
+    \"\"\"
+    
+    # CUDA kernel code (device code) - SEPARATE STRING  
+    cuda_code = \"\"\"
+    #include <torch/extension.h>
+    
+    __global__ void your_kernel_name(const float *A, const float *B, float *C, int M, int N, int K) {{
+        // CUDA kernel implementation
+    }}
+    \"\"\"
+    
     # Load the CUDA kernel using load_inline - MUST use this exact format
     matmul_module = load_inline(
         name="matmul_cuda",
-        cpp_sources="",  # MUST be empty string - no C++ sources needed
-        cuda_sources=[cuda_kernel],  # MUST be list containing CUDA kernel string
+        cpp_sources=cpp_code,      # C++ host code
+        cuda_sources=[cuda_code],  # CUDA device code
         verbose=True
     )
     ```
@@ -227,16 +273,17 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     - cuda=True (WRONG) 
     - with_cuda=True (WRONG)
     - extra_cflags= (WRONG)
+    - Mixing C++ and CUDA code in same string (WRONG)
     
     REQUIRED PARAMETERS (MUST USE):
     - name="your_module_name"
-    - cpp_sources="" (empty string)
-    - cuda_sources=[your_kernel_string] (list with kernel)
+    - cpp_sources=cpp_code (string with C++ wrapper and Pybind11)
+    - cuda_sources=[cuda_code] (list with ONLY CUDA kernel)
     - verbose=True
 
-    Return ONLY the complete Python script in ```python``` blocks, with the CUDA C++ kernel embedded within it in a string.
+    Return ONLY the complete Python script in ```python``` blocks, with SEPARATED C++ and CUDA code strings.
     
-    FINAL REMINDER: Use load_inline(name="...", cpp_sources="", cuda_sources=[kernel_string], verbose=True) - NO OTHER FORMAT!"""
+    FINAL REMINDER: Use load_inline(name="...", cpp_sources=cpp_code, cuda_sources=[cuda_code], verbose=True) - SEPARATE THE CODES!"""
     else:
         prompt += f"""
 
