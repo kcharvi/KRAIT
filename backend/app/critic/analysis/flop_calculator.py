@@ -3,8 +3,7 @@ FLOP (Floating Point Operations) calculator for kernel analysis
 """
 
 import re
-from typing import Dict, Any, List, Tuple, Optional
-from ..critic_models import PerformanceMetrics, Suggestion, SeverityLevel
+from typing import Dict, Any, List
 from ..parsers.parser_factory import ParserFactory
 
 

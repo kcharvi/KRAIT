@@ -57,20 +57,24 @@ interface AnalysisResult {
 
 interface CriticPanelProps {
     kernelCode: string;
+    activeTab?: "cuda" | "pytorch" | "triton";
     hardware: string;
     backend: string;
     isAnalyzing: boolean;
     compilationStatus: "idle" | "compiling" | "success" | "error";
     onAnalysisComplete?: (result: AnalysisResult) => void;
+    onCodeFixed?: (fixedCode: string) => void; // Add this callback
 }
 
 export default function CriticPanel({
     kernelCode,
+    activeTab = "cuda",
     hardware,
     backend,
     isAnalyzing,
     compilationStatus,
     onAnalysisComplete,
+    onCodeFixed,
 }: CriticPanelProps) {
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [expandedSections, setExpandedSections] = useState<Set<string>>(
@@ -90,6 +94,11 @@ export default function CriticPanel({
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionProvider, setExecutionProvider] = useState("github_colab");
     const [executionError, setExecutionError] = useState<string | null>(null);
+
+    // Execution error fixing state
+    const [isFixingExecution, setIsFixingExecution] = useState(false);
+    const [executionFixAttempts, setExecutionFixAttempts] = useState(0);
+    const [maxExecutionFixAttempts] = useState(3);
 
     // Debug: Track analysisResult changes
     useEffect(() => {
@@ -300,6 +309,66 @@ export default function CriticPanel({
         }
     };
 
+    // Execution error fixing function
+    const fixExecutionError = async (error: string) => {
+        if (!kernelCode.trim() || !onCodeFixed) return;
+
+        const currentAttempt = executionFixAttempts + 1;
+        console.log(
+            `🔧 Attempting to fix execution error (attempt ${currentAttempt}/${maxExecutionFixAttempts})`
+        );
+
+        setIsFixingExecution(true);
+        setExecutionError(error);
+
+        try {
+            const response = await fetch(
+                `${
+                    process.env.BACKEND_URL || "http://localhost:8000"
+                }/api/v1/gpu/fix-execution-error`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        kernel_code: kernelCode,
+                        execution_error: error,
+                        hardware,
+                        backend,
+                        problem_name: "Unknown", // You'll need to pass this from parent
+                        user_prompt: "Fix execution error",
+                    }),
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log("🔍 Execution fix result:", result);
+
+            if (result.success) {
+                // Update the kernel code with fixed version
+                onCodeFixed(result.fixed_code);
+                setExecutionFixAttempts(currentAttempt);
+                setExecutionError("");
+                console.log("🔧 Execution error fixed, code updated");
+
+                // Reset execution state to allow retry
+                setRealMetrics(null);
+                setIsExecuting(false);
+            } else {
+                setExecutionError(result.error || "Failed to fix execution error");
+                console.log("❌ Failed to fix execution error:", result.error);
+            }
+        } catch (error) {
+            console.error("Execution error fixing failed:", error);
+            setExecutionError("Failed to fix execution error");
+        } finally {
+            setIsFixingExecution(false);
+        }
+    };
+
     const executeOnGPU = async () => {
         if (!kernelCode.trim()) {
             alert("No kernel code to execute");
@@ -316,6 +385,25 @@ export default function CriticPanel({
         setIsExecuting(true);
         setExecutionError(null);
         setRealMetrics(null);
+
+        // Test backend connectivity first
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+        console.log("🔍 Testing backend connectivity to:", backendUrl);
+
+        try {
+            const healthResponse = await fetch(`${backendUrl}/api/v1/health`, {
+                method: "GET",
+                signal: AbortSignal.timeout(5000), // 5 second timeout for health check
+            });
+            console.log("✅ Backend health check:", healthResponse.status);
+            if (healthResponse.ok) {
+                const healthData = await healthResponse.json();
+                console.log("✅ Backend health data:", healthData);
+            }
+        } catch (healthError) {
+            console.warn("⚠️ Backend health check failed:", healthError);
+            console.warn("⚠️ This might indicate the backend is not running or not accessible");
+        }
 
         try {
             const requestBody = {
@@ -335,11 +423,35 @@ export default function CriticPanel({
                 kernel_code: kernelCode.substring(0, 100) + "...",
             });
 
+            console.log("⏳ Waiting for response... (this may take several minutes)");
+
+            // Test if the endpoint is reachable with a simple OPTIONS request
+            try {
+                const optionsResponse = await fetch(endpoint, {
+                    method: "OPTIONS",
+                    signal: AbortSignal.timeout(10000), // 10 second timeout
+                });
+                console.log("✅ Endpoint reachable, OPTIONS response:", optionsResponse.status);
+            } catch (optionsError) {
+                console.warn("⚠️ Endpoint might not be reachable:", optionsError);
+            }
+
+            // Create an AbortController for timeout handling
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+                console.log("⏰ Request timed out after 10 minutes");
+            }, 600000); // 10 minutes timeout
+
             const response = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(requestBody),
+                signal: controller.signal,
             });
+
+            // Clear timeout if request completes
+            clearTimeout(timeoutId);
 
             console.log("📊 Response status:", response.status);
             console.log("📊 Response headers:", Object.fromEntries(response.headers.entries()));
@@ -379,9 +491,11 @@ export default function CriticPanel({
             console.log("📊 Result provider:", result.provider);
 
             if (result.success) {
+                console.log("🎉 GPU execution successful! Setting metrics...");
                 setRealMetrics(result.metrics);
                 setExecutionError(null);
-                console.log("🎉 GPU execution successful!");
+                setExecutionFixAttempts(0); // Reset fix attempts on success
+                console.log("✅ Metrics set successfully");
 
                 // Update kernel code with corrected version if available
                 if (result.metrics?.corrected_code) {
@@ -397,10 +511,31 @@ export default function CriticPanel({
                 const errorMsg = result.error || "GPU execution failed";
                 console.error("❌ GPU execution failed:", errorMsg);
                 setExecutionError(errorMsg);
+
+                // Check if this is an execution error that can be fixed
+                if (
+                    errorMsg.includes("CUDA error") &&
+                    executionFixAttempts < maxExecutionFixAttempts
+                ) {
+                    console.log("🔧 Execution error detected, attempting to fix...");
+                    await fixExecutionError(errorMsg);
+                }
             }
         } catch (error) {
             console.error("💥 GPU execution error:", error);
-            const errorMessage = error instanceof Error ? error.message : "GPU execution failed";
+            let errorMessage = "GPU execution failed";
+
+            if (error instanceof Error) {
+                if (error.name === "TimeoutError") {
+                    errorMessage =
+                        "GPU execution timed out. The request took longer than 15 minutes.";
+                } else if (error.name === "AbortError") {
+                    errorMessage = "GPU execution was aborted.";
+                } else {
+                    errorMessage = error.message;
+                }
+            }
+
             setExecutionError(errorMessage);
         } finally {
             setIsExecuting(false);
@@ -539,7 +674,7 @@ export default function CriticPanel({
                     {expandedSections.has("gpu_execution") && (
                         <div className="px-4 pb-4">
                             {/* Execution Controls */}
-                            <div className="p-4 bg-blue-50 rounded-lg mb-4">
+                            <div className="p-4 rounded-lg mb-4">
                                 <h4 className="font-medium text-blue-900 mb-3">
                                     Execute on Real GPU
                                 </h4>
@@ -555,12 +690,19 @@ export default function CriticPanel({
                                         onClick={executeOnGPU}
                                         disabled={
                                             isExecuting ||
+                                            isFixingExecution ||
                                             !kernelCode.trim() ||
                                             compilationStatus !== "success"
                                         }
                                         className="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50 flex items-center gap-1"
                                     >
-                                        {isExecuting ? (
+                                        {isFixingExecution ? (
+                                            <>
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                Fixing... ({executionFixAttempts}/
+                                                {maxExecutionFixAttempts})
+                                            </>
+                                        ) : isExecuting ? (
                                             <>
                                                 <Loader2 className="w-3 h-3 animate-spin" />
                                                 Executing...
@@ -569,6 +711,18 @@ export default function CriticPanel({
                                             "Run on GPU"
                                         )}
                                     </button>
+
+                                    {/* Manual fix button for execution errors */}
+                                    {executionError &&
+                                        executionFixAttempts < maxExecutionFixAttempts &&
+                                        !isFixingExecution && (
+                                            <button
+                                                onClick={() => fixExecutionError(executionError)}
+                                                className="px-3 py-1 bg-orange-500 text-white rounded text-sm hover:bg-orange-600 flex items-center gap-1"
+                                            >
+                                                🔧 Fix Error
+                                            </button>
+                                        )}
                                 </div>
 
                                 {/* Side note */}
@@ -670,64 +824,6 @@ export default function CriticPanel({
                                     )}
                                 </div>
                             )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Overview Section */}
-                <div className="border-b border-gray-200">
-                    <button
-                        onClick={() => toggleSection("overview")}
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50"
-                    >
-                        <span className="font-medium text-gray-900">Overview</span>
-                        {expandedSections.has("overview") ? (
-                            <ChevronDown className="w-4 h-4 text-gray-400" />
-                        ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-400" />
-                        )}
-                    </button>
-                    {expandedSections.has("overview") && (
-                        <div className="px-4 pb-4 space-y-3">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-2xl font-bold text-primary-600">
-                                        {realMetrics?.performance_score ||
-                                            analysisResult?.score ||
-                                            "N/A"}
-                                    </div>
-                                    <div className="text-xs text-gray-600">Overall Score</div>
-                                </div>
-                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-2xl font-bold text-blue-600">
-                                        {realMetrics?.total_flops?.toFixed(0) ||
-                                            analysisResult?.performance?.flops_total?.toFixed(0) ||
-                                            "N/A"}
-                                    </div>
-                                    <div className="text-xs text-gray-600">Total FLOPs</div>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-lg font-semibold text-gray-700">
-                                        {realMetrics?.execution_time?.toFixed(2) ||
-                                            analysisResult?.performance?.estimated_runtime_ms?.toFixed(
-                                                2
-                                            ) ||
-                                            "N/A"}
-                                        ms
-                                    </div>
-                                    <div className="text-xs text-gray-600">Est. Runtime</div>
-                                </div>
-                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-lg font-semibold text-gray-700">
-                                        {realMetrics?.bound_type ||
-                                            analysisResult?.performance?.bound ||
-                                            "N/A"}
-                                    </div>
-                                    <div className="text-xs text-gray-600">Bound Type</div>
-                                </div>
-                            </div>
                         </div>
                     )}
                 </div>

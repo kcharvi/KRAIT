@@ -21,6 +21,7 @@ def create_kernel_generation_prompt(backend: str, hardware: str, code: str, user
     # Determine the appropriate programming language based on backend
     language_map = {
         "CUDA": "cuda",
+        "PYTORCH_CUDA_EXTENSION": "python",
         "Triton": "python", 
         "OpenCL": "c",
         "C++": "cpp",
@@ -50,6 +51,30 @@ IMPORTANT: Generate a COMPLETE CUDA program that includes:
 5. Proper error checking for CUDA operations
 
 Return ONLY the complete CUDA program in ```cuda``` blocks:"""
+    elif backend.upper() == "PYTORCH_CUDA_EXTENSION":
+        prompt = f"""Generate a Python script that defines a custom CUDA kernel for {hardware} using PyTorch's `load_inline` function.
+
+Base code:
+```python
+{code}
+```
+
+Requirements: {user_prompt}
+
+The script should include:
+1. The CUDA C++ kernel code (e.g., `matmul_kernel`) as a multi-line string
+2. Python code to load this kernel using `torch.utils.cpp_extension.load_inline`
+3. A Python function that wraps the loaded kernel and handles tensor inputs/outputs
+4. Example usage demonstrating how to call the Python wrapper with PyTorch tensors
+
+IMPORTANT: Generate a COMPLETE Python script that includes:
+- All necessary imports (torch, torch.utils.cpp_extension, etc.)
+- CUDA C++ kernel code embedded as a string
+- Python wrapper function for the kernel
+- Example usage with proper tensor creation and function calls
+- Error handling for CUDA operations
+
+Return ONLY the complete Python script in ```python``` blocks, with the CUDA C++ kernel embedded within it in a string."""
     else:
         prompt = f"""Generate optimized {backend} kernel for {hardware}.
 
@@ -69,6 +94,10 @@ Return ONLY the optimized code in ```{language}``` blocks:"""
         prompt += f"""
 
 Generate a complete, compilable CUDA program optimized for {hardware}. Include all necessary includes, defines, kernel functions, and main() function. Return ONLY the complete code in ```cuda``` blocks."""
+    elif backend.upper() == "PYTORCH_CUDA_EXTENSION":
+        prompt += f"""
+
+Generate a complete, runnable Python script with PyTorch CUDA extension optimized for {hardware}. Include all necessary imports, CUDA kernel code, Python wrapper, and example usage. Return ONLY the complete Python script in ```python``` blocks."""
     else:
         prompt += f"""
 
