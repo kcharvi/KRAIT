@@ -95,9 +95,74 @@ Return ONLY the optimized code in ```{language}``` blocks:"""
 
 Generate a complete, compilable CUDA program optimized for {hardware}. Include all necessary includes, defines, kernel functions, and main() function. Return ONLY the complete code in ```cuda``` blocks."""
     elif backend.upper() == "PYTORCH_CUDA_EXTENSION":
-        prompt += f"""
+        prompt = f"""Generate a Python script that defines a custom CUDA kernel for {hardware} using PyTorch's `load_inline` function.
 
-Generate a complete, runnable Python script with PyTorch CUDA extension optimized for {hardware}. Include all necessary imports, CUDA kernel code, Python wrapper, and example usage. Return ONLY the complete Python script in ```python``` blocks."""
+    Base code:
+    ```python
+    {code}
+    ```
+
+    Requirements: {user_prompt}
+
+    The script should include:
+    1. All necessary imports (torch, torch.utils.cpp_extension, etc.)
+    2. CUDA C++ kernel code with proper structure:
+    - All #define statements at the top
+    - Proper includes: #include <torch/extension.h>
+    - CUDA kernel function with __global__ keyword
+    - C++ wrapper function that handles tensor operations
+    - Python module binding with PYBIND11_MODULE
+    3. Python code to load this kernel using `torch.utils.cpp_extension.load_inline`
+    4. A Python function that wraps the loaded kernel and handles tensor inputs/outputs
+    5. Example usage demonstrating how to call the Python wrapper with PyTorch tensors
+    6. Proper error handling for CUDA operations
+
+    IMPORTANT: Generate a COMPLETE Python script that includes:
+    - All necessary imports
+    - CUDA C++ kernel code embedded as a string with proper structure
+    - Python wrapper function for the kernel
+    - Example usage with proper tensor creation and function calls
+    - Error handling for CUDA operations
+    - Proper #define placement at the top of the CUDA code
+    - PYBIND11_MODULE for Python binding
+
+    CUDA Code Structure:
+    ```cpp
+    #include <torch/extension.h>
+
+    #define BLOCK_SIZE 32  // Define constants at the top
+
+    __global__ void your_kernel_name(/* parameters */) {{
+        // Kernel implementation
+    }}
+
+    std::vector<torch::Tensor> your_wrapper_name(torch::Tensor A, torch::Tensor B) {{
+        // Get dimensions
+        int M = A.size(0);
+        int K = A.size(1);
+        int N = B.size(1);
+        
+        // Create output tensor
+        auto C = torch::zeros({{M, N}}, A.options());
+        
+        // Configure grid and block dimensions
+        dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
+        dim3 gridDim((N + BLOCK_SIZE - 1) / BLOCK_SIZE, (M + BLOCK_SIZE - 1) / BLOCK_SIZE);
+        
+        // Launch kernel
+        your_kernel_name<<<gridDim, blockDim>>>(A.data_ptr<float>(), B.data_ptr<float>(), C.data_ptr<float>(), M, N, K);
+        
+        cudaDeviceSynchronize();
+        return {{C}};
+    }}
+
+    // Python module binding - REQUIRED
+    PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {{
+        m.def("your_wrapper_name", &your_wrapper_name, "Description");
+    }}
+    ```
+
+    Return ONLY the complete Python script in ```python``` blocks, with the CUDA C++ kernel embedded within it in a string."""
     else:
         prompt += f"""
 

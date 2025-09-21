@@ -78,74 +78,76 @@ class GitHubExecutor:
             logger.error(f"Failed to ensure results directory: {e}")
             return False
     
-    def clean_old_kernel_files(self) -> bool:
-        """
-        Clean up old kernel files from the kernels directory.
-        Removes files older than 1 hour to prevent accumulation.
-        
-        Returns:
-            True if cleanup was successful, False otherwise
-        """
+    def clean_old_kernel_files(self):
+        """Clean up old kernel files from GitHub repository"""
         try:
-            logger.info("Cleaning up old kernel files...")
+            # Get all files in the kernels directory
+            contents = self.repo.get_contents(self.kernels_path, ref="main")
             
-            # Get all files in kernels directory
-            kernels_contents = self.repo.get_contents(self.kernels_path, ref="main")
-            current_time = int(time.time())
-            cleaned_count = 0
+            current_time = time.time()
+            files_to_delete = []
             
-            for file_info in kernels_contents:
-                filename = file_info.name
-                # Clean up old kernel files (older than 1 hour)
-                if filename.endswith('.cu') and ('compile_' in filename or 'kernel_' in filename):
-                    try:
-                        # Extract timestamp from filename
-                        if 'compile_' in filename:
-                            timestamp_str = filename.replace('compile_', '').replace('.cu', '')
-                        elif 'kernel_' in filename:
-                            timestamp_str = filename.replace('kernel_', '').replace('.cu', '')
-                        else:
-                            continue
+            for file in contents:
+                if file.type == "file":
+                    # Check if it's a kernel file (both .cu and .py)
+                    if (file.name.startswith("kernel_") or file.name.startswith("compile_")) and \
+                    (file.name.endswith(".cu") or file.name.endswith(".py")):
                         
-                        file_timestamp = int(timestamp_str)
-                        # If file is older than 1 hour (3600 seconds), delete it
-                        if current_time - file_timestamp > 3600:
-                            self.repo.delete_file(
-                                f"{self.kernels_path}/{filename}",
-                                f"Clean up old kernel file {filename}",
-                                file_info.sha,
-                                branch="main"
-                            )
-                            logger.info(f"Deleted old kernel file: {filename}")
-                            cleaned_count += 1
+                        # Extract timestamp from filename
+                        try:
+                            if file.name.startswith("kernel_"):
+                                timestamp_str = file.name.replace("kernel_", "").replace(".cu", "").replace(".py", "")
+                            elif file.name.startswith("compile_"):
+                                timestamp_str = file.name.replace("compile_", "").replace(".cu", "").replace(".py", "")
+                            else:
+                                continue
                             
-                    except (ValueError, KeyError) as e:
-                        logger.warning(f"Error processing {filename}: {e}")
-                        continue
+                            file_timestamp = int(timestamp_str)
+                            
+                            # Delete files older than 1 hour
+                            if current_time - file_timestamp > 3600:  # 1 hour
+                                files_to_delete.append(file)
+                                
+                        except ValueError:
+                            # If timestamp extraction fails, skip this file
+                            continue
             
-            logger.info(f"Cleaned up {cleaned_count} old kernel files")
-            return True
+            # Delete old files
+            for file in files_to_delete:
+                try:
+                    self.repo.delete_file(
+                        file.path,
+                        f"Cleanup old kernel file {file.name}",
+                        file.sha,
+                        branch="main"
+                    )
+                    logger.info(f"Cleaned up old kernel file: {file.name}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete old kernel file {file.name}: {e}")
+            
+            logger.info(f"Cleaned up {len(files_to_delete)} old kernel files")
             
         except Exception as e:
-            logger.error(f"Failed to clean up old kernel files: {e}")
-            return False
+            logger.warning(f"Failed to clean up old kernel files: {e}")
     
     async def execute_cuda_kernel(
-        self, 
-        kernel_code: str, 
-        hardware: str = "NVIDIA T4",
-        timeout: int = 600  # Increased to 10 minutes for GitHub-Colab cycle
-    ) -> Dict[str, Any]:
+    self, 
+    kernel_code: str, 
+    hardware: str = "NVIDIA T4",
+    backend: str = "CUDA",
+    timeout: int = 600  # 10 minutes for execution
+) -> Dict[str, Any]:
         """
-        Execute CUDA kernel via GitHub + Colab integration.
+        Execute kernel via GitHub + Colab integration.
         
         Args:
-            kernel_code: CUDA kernel code to execute
+            kernel_code: Kernel code to execute
             hardware: Target hardware specification
+            backend: Backend type (CUDA/Triton/PyTorch)
             timeout: Maximum wait time in seconds
             
         Returns:
-            Dictionary containing execution metrics or error information
+            Dictionary containing execution results or error information
         """
         # Ensure results directory exists before proceeding
         if not self.ensure_results_directory():
@@ -156,21 +158,38 @@ class GitHubExecutor:
         # Clean up old kernel files before uploading new one
         self.clean_old_kernel_files()
         
+        # Determine file extension based on backend
+        if backend.upper() == "PYTORCH_CUDA_EXTENSION":
+            file_extension = ".py"
+        else:
+            file_extension = ".cu"
+        
         # Create unique filename
         timestamp = int(time.time())
-        filename = f"{self.kernels_path}/kernel_{timestamp}.cu"
+        filename = f"{self.kernels_path}/kernel_{timestamp}{file_extension}"
         
         try:
-            logger.info(f"Uploading kernel to GitHub: {filename}")
+            logger.info(f"Uploading kernel for execution to GitHub: {filename}")
             
             # Upload kernel code to GitHub with execution metadata
-            metadata = f"""// EXECUTION REQUEST
-// Hardware: {hardware}
-// Backend: CUDA
-// Timestamp: {timestamp}
-// Type: execute
+            if backend.upper() == "PYTORCH_CUDA_EXTENSION":
+                # For PyTorch, add metadata as Python comments
+                metadata = f"""# EXECUTION REQUEST
+    # Hardware: {hardware}
+    # Backend: {backend}
+    # Timestamp: {timestamp}
+    # Type: execute
 
-{kernel_code}"""
+    {kernel_code}"""
+            else:
+                # For CUDA/Triton, add metadata as C++ comments
+                metadata = f"""// EXECUTION REQUEST
+    // Hardware: {hardware}
+    // Backend: {backend}
+    // Timestamp: {timestamp}
+    // Type: execute
+
+    {kernel_code}"""
             
             self.repo.create_file(
                 filename,
@@ -179,23 +198,23 @@ class GitHubExecutor:
                 branch="main"
             )
             
-            logger.info(f"Kernel uploaded successfully: {filename}")
+            logger.info(f"Kernel uploaded for execution: {filename}")
             
-            # Wait for Colab to process and return result
-            result = await self._wait_for_result(timestamp, timeout)
+            # Wait for Colab to process and return execution result
+            result = await self._wait_for_result(timestamp, timeout, result_type="kernel")
             
             # Clean up kernel file
             try:
                 kernel_file = self.repo.get_contents(filename, ref="main")
                 self.repo.delete_file(
                     filename,
-                    f"Cleanup kernel file {timestamp}",
+                    f"Cleanup execution file {timestamp}",
                     kernel_file.sha,
                     branch="main"
                 )
-                logger.info(f"Kernel file cleaned up: {filename}")
+                logger.info(f"Execution file cleaned up: {filename}")
             except Exception as e:
-                logger.warning(f"Failed to clean up kernel file: {e}")
+                logger.warning(f"Failed to clean up execution file: {e}")
             
             return result
             
@@ -207,7 +226,6 @@ class GitHubExecutor:
             error_msg = f"Execution failed: {str(e)}"
             logger.error(error_msg)
             return {"error": error_msg}
-    
     async def compile_kernel_on_colab(
         self, 
         kernel_code: str, 
@@ -235,22 +253,39 @@ class GitHubExecutor:
         
         # Clean up old kernel files before uploading new one
         self.clean_old_kernel_files()
+
+        # Determine file extension based on backend
+        if backend.upper() == "PYTORCH_CUDA_EXTENSION":
+            file_extension = ".py"
+        else:
+            file_extension = ".cu"
         
         # Create unique filename with compilation prefix
         timestamp = int(time.time())
-        filename = f"{self.kernels_path}/compile_{timestamp}.cu"
-        
+        filename = f"{self.kernels_path}/compile_{timestamp}{file_extension}"
+    
         try:
             logger.info(f"Uploading kernel for compilation to GitHub: {filename}")
             
             # Upload kernel code to GitHub with compilation metadata
-            metadata = f"""// COMPILATION REQUEST
-// Hardware: {hardware}
-// Backend: {backend}
-// Timestamp: {timestamp}
-// Type: compile_only
+            if backend.upper() == "PYTORCH_CUDA_EXTENSION":
+                # For PyTorch, add metadata as Python comments
+                metadata = f"""# COMPILATION REQUEST
+    # Hardware: {hardware}
+    # Backend: {backend}
+    # Timestamp: {timestamp}
+    # Type: compile_only
 
-{kernel_code}"""
+    {kernel_code}"""
+            else:
+                # For CUDA/Triton, add metadata as C++ comments
+                metadata = f"""// COMPILATION REQUEST
+    // Hardware: {hardware}
+    // Backend: {backend}
+    // Timestamp: {timestamp}
+    // Type: compile_only
+
+    {kernel_code}"""
             
             self.repo.create_file(
                 filename,
@@ -278,7 +313,7 @@ class GitHubExecutor:
                 logger.warning(f"Failed to clean up compilation file: {e}")
             
             return result
-            
+        
         except GithubException as e:
             error_msg = f"GitHub API error: {e}"
             logger.error(error_msg)

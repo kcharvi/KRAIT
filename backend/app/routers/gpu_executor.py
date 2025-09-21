@@ -378,12 +378,29 @@ async def compile_kernel(request: KernelCompilationRequest):
                         "error": "Invalid Triton syntax: missing @triton.jit decorator or import",
                         "compiled_code": request.kernel_code
                     }
+            elif request.backend.upper() == "PYTORCH_CUDA_EXTENSION":
+                if "torch.utils.cpp_extension" in request.kernel_code and "load_inline" in request.kernel_code:
+                    return {
+                        "success": True,
+                        "backend": request.backend,
+                        "hardware": request.hardware,
+                        "message": "PyTorch CUDA extension syntax validation successful (local)",
+                        "compiled_code": request.kernel_code
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "backend": request.backend,
+                        "hardware": request.hardware,
+                        "error": "Invalid PyTorch CUDA extension syntax: missing torch.utils.cpp_extension or load_inline",
+                        "compiled_code": request.kernel_code
+                    }
             else:
                 return {
                     "success": False,
                     "backend": request.backend,
                     "hardware": request.hardware,
-                    "error": "GitHub integration not configured - cannot compile CUDA on Colab",
+                    "error": "GitHub integration not configured - cannot compile on Colab",
                     "compiled_code": request.kernel_code
                 }
         
