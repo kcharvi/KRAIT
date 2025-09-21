@@ -97,6 +97,19 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     elif backend.upper() == "PYTORCH_CUDA_EXTENSION":
         prompt = f"""Generate a Python script that defines a custom CUDA kernel for {hardware} using PyTorch's `load_inline` function.
 
+    CRITICAL: Use EXACT load_inline syntax: load_inline(name="...", cpp_sources="", cuda_sources=[kernel_string], verbose=True)
+    NEVER use 'source=', 'cuda=True', 'with_cuda=True', or 'extra_cflags=' parameters!
+    The kernel code MUST go in cuda_sources as a list, and cpp_sources MUST be an empty string.
+    
+    ONLY CORRECT FORMAT:
+    load_inline(name="module_name", cpp_sources="", cuda_sources=[kernel_string], verbose=True)
+    
+    WRONG FORMATS (DO NOT USE):
+    - load_inline(name="module", source=kernel_string, ...)  # WRONG!
+    - load_inline(name="module", cpp_sources=kernel_string, ...)  # WRONG!
+    - load_inline(name="module", cuda_sources=kernel_string, ...)  # WRONG!
+    - load_inline(name="module", cuda_sources=kernel_string, cuda=True, ...)  # WRONG!
+
     Base code:
     ```python
     {code}
@@ -112,7 +125,13 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     - CUDA kernel function with __global__ keyword
     - C++ wrapper function that handles tensor operations
     - Python module binding with PYBIND11_MODULE
-    3. Python code to load this kernel using `torch.utils.cpp_extension.load_inline`
+    3. Python code to load this kernel using `torch.utils.cpp_extension.load_inline` with EXACT parameters:
+       - name: string identifier for the module
+       - cpp_sources: MUST be empty string "" (no C++ sources needed)
+       - cuda_sources: MUST be list containing the CUDA kernel string [kernel_string]
+       - verbose: True for detailed output
+       - NEVER use 'cuda=True' parameter
+       - NEVER put kernel code in cpp_sources
     4. A Python function that wraps the loaded kernel and handles tensor inputs/outputs
     5. Example usage demonstrating how to call the Python wrapper with PyTorch tensors
     6. Proper error handling for CUDA operations
@@ -125,6 +144,36 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     - Error handling for CUDA operations
     - Proper #define placement at the top of the CUDA code
     - PYBIND11_MODULE for Python binding
+    
+    EXAMPLE TEMPLATE (COPY THIS EXACTLY - DO NOT MODIFY):
+    ```python
+    import torch
+    from torch.utils.cpp_extension import load_inline
+    
+    # CUDA kernel code
+    kernel_code = \"\"\"
+    #include <torch/extension.h>
+    #define BLOCK_SIZE 32
+    
+    __global__ void your_kernel(...) { ... }
+    
+    std::vector<torch::Tensor> your_wrapper(...) { ... }
+    
+    PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { ... }
+    \"\"\"
+    
+    # Load kernel - COPY THIS EXACT FORMAT - DO NOT CHANGE ANYTHING
+    module = load_inline(
+        name="your_module",
+        cpp_sources="",
+        cuda_sources=[kernel_code],
+        verbose=True
+    )
+    ```
+    
+    CRITICAL: The kernel code goes in cuda_sources=[kernel_code], NOT in cpp_sources!
+    CRITICAL: cpp_sources must be an empty string ""!
+    CRITICAL: Do NOT use source=, cuda=True, with_cuda=True, or extra_cflags=!
 
     CUDA Code Structure:
     ```cpp
@@ -162,7 +211,32 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     }}
     ```
 
-    Return ONLY the complete Python script in ```python``` blocks, with the CUDA C++ kernel embedded within it in a string."""
+    Python load_inline Usage (REQUIRED FORMAT - COPY THIS EXACTLY):
+    ```python
+    # Load the CUDA kernel using load_inline - MUST use this exact format
+    matmul_module = load_inline(
+        name="matmul_cuda",
+        cpp_sources="",  # MUST be empty string - no C++ sources needed
+        cuda_sources=[cuda_kernel],  # MUST be list containing CUDA kernel string
+        verbose=True
+    )
+    ```
+    
+    FORBIDDEN PARAMETERS (DO NOT USE):
+    - source= (WRONG)
+    - cuda=True (WRONG) 
+    - with_cuda=True (WRONG)
+    - extra_cflags= (WRONG)
+    
+    REQUIRED PARAMETERS (MUST USE):
+    - name="your_module_name"
+    - cpp_sources="" (empty string)
+    - cuda_sources=[your_kernel_string] (list with kernel)
+    - verbose=True
+
+    Return ONLY the complete Python script in ```python``` blocks, with the CUDA C++ kernel embedded within it in a string.
+    
+    FINAL REMINDER: Use load_inline(name="...", cpp_sources="", cuda_sources=[kernel_string], verbose=True) - NO OTHER FORMAT!"""
     else:
         prompt += f"""
 
