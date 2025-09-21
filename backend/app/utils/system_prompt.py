@@ -164,33 +164,68 @@ Generate a complete, compilable CUDA program optimized for {hardware}. Include a
     # C++ wrapper code (host code) - SEPARATE STRING
     cpp_code = \"\"\"
     #include <torch/extension.h>
+    #include <vector>
+    
+    // Forward declaration of the CUDA kernel - REQUIRED!
+    __global__ void your_kernel_name(const float *A, const float *B, float *C, int M, int N, int K);
+    
+    // Define BLOCK_SIZE for the C++ code - REQUIRED!
     #define BLOCK_SIZE 32
     
-    std::vector<torch::Tensor> your_wrapper(...) { ... }
+    std::vector<torch::Tensor> your_wrapper_name(torch::Tensor A, torch::Tensor B) {{
+        int M = A.size(0);
+        int K = A.size(1);
+        int N = B.size(1);
+        
+        auto C = torch::zeros({{M, N}}, A.options());
+        
+        dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);
+        dim3 gridDim((N + BLOCK_SIZE - 1) / BLOCK_SIZE, (M + BLOCK_SIZE - 1) / BLOCK_SIZE);
+        
+        your_kernel_name<<<gridDim, blockDim>>>(A.data_ptr<float>(), B.data_ptr<float>(), C.data_ptr<float>(), M, N, K);
+        
+        cudaDeviceSynchronize();
+        return {{C}};
+    }}
     
-    PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) { ... }
+    PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {{
+        m.def("your_wrapper_name", &your_wrapper_name, "Description");
+    }}
     \"\"\"
     
     # CUDA kernel code (device code) - SEPARATE STRING
     cuda_code = \"\"\"
     #include <torch/extension.h>
     
-    __global__ void your_kernel(...) { ... }
+    __global__ void your_kernel_name(const float *A, const float *B, float *C, int M, int N, int K) {{
+        int row = blockIdx.y * blockDim.y + threadIdx.y;
+        int col = blockIdx.x * blockDim.x + threadIdx.x;
+        
+        if (row < M && col < N) {{
+            float sum = 0.0f;
+            for (int k = 0; k < K; ++k) {{
+                sum += A[row * K + k] * B[k * N + col];
+            }}
+            C[row * N + col] = sum;
+        }}
+    }}
     \"\"\"
     
     # Load kernel - COPY THIS EXACT FORMAT - DO NOT CHANGE ANYTHING
-    # NOTICE: cpp_sources=cpp_code and cuda_sources=[cuda_code] (SEPARATED!)
+    # NOTICE: cpp_sources=[cpp_code] and cuda_sources=[cuda_code] (BOTH AS LISTS!)
     module = load_inline(
         name="your_module",
-        cpp_sources=cpp_code,      # C++ host code
-        cuda_sources=[cuda_code],  # CUDA device code
+        cpp_sources=[cpp_code],    # C++ host code AS LIST
+        cuda_sources=[cuda_code],  # CUDA device code AS LIST
         verbose=True
     )
     ```
     
     CRITICAL: SEPARATE C++ wrapper from CUDA kernel into different strings!
-    CRITICAL: cpp_sources=cpp_code (C++ wrapper and Pybind11)
-    CRITICAL: cuda_sources=[cuda_code] (ONLY CUDA kernel)
+    CRITICAL: cpp_sources=[cpp_code] (C++ wrapper and Pybind11 AS LIST)
+    CRITICAL: cuda_sources=[cuda_code] (ONLY CUDA kernel AS LIST)
+    CRITICAL: Include forward declaration of CUDA kernel in C++ code!
+    CRITICAL: Define BLOCK_SIZE in C++ code, not just CUDA code!
     CRITICAL: Do NOT use source=, cuda=True, with_cuda=True, or extra_cflags=!
 
     CUDA Code Structure (SEPARATE INTO TWO STRINGS):

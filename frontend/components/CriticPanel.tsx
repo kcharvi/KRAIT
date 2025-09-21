@@ -692,7 +692,8 @@ export default function CriticPanel({
                                             isExecuting ||
                                             isFixingExecution ||
                                             !kernelCode.trim() ||
-                                            compilationStatus !== "success"
+                                            compilationStatus !== "success" ||
+                                            activeTab === "pytorch" // Block PyTorch execution
                                         }
                                         className="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50 flex items-center gap-1"
                                     >
@@ -707,6 +708,8 @@ export default function CriticPanel({
                                                 <Loader2 className="w-3 h-3 animate-spin" />
                                                 Executing...
                                             </>
+                                        ) : activeTab === "pytorch" ? (
+                                            "Blocked (PyTorch)"
                                         ) : (
                                             "Run on GPU"
                                         )}
@@ -724,6 +727,20 @@ export default function CriticPanel({
                                             </button>
                                         )}
                                 </div>
+
+                                {/* PyTorch execution warning */}
+                                {activeTab === "pytorch" && (
+                                    <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                                        <div className="flex items-center">
+                                            <div className="w-4 h-4 text-yellow-500 mr-2">⚠️</div>
+                                            <span className="text-sm text-yellow-700">
+                                                PyTorch CUDA extension execution is temporarily
+                                                disabled while we fix compilation issues. You can
+                                                still generate and view code.
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Side note */}
                                 <div className="text-xs text-gray-600 mt-2">

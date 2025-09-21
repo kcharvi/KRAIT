@@ -9,9 +9,13 @@ export default function KernelWorkbench() {
     const [backend, setBackend] = useState("CUDA");
     const [hardware, setHardware] = useState("NVIDIA T4");
 
+    // Tab system state
+    const [activeTab, setActiveTab] = useState<"cuda" | "pytorch">("cuda");
+
     // Define which backends support compilation and execution
-    const supportsCompilation = backend === "CUDA";
-    const supportsExecution = backend === "CUDA";
+    // Block PyTorch CUDA extensions until compilation issues are resolved
+    const supportsCompilation = backend === "CUDA" && activeTab === "cuda";
+    const supportsExecution = backend === "CUDA" && activeTab === "cuda";
 
     // Define supported hardware for each backend
     const getSupportedHardware = (backend: string) => {
@@ -42,9 +46,6 @@ export default function KernelWorkbench() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isLoadingProblems, setIsLoadingProblems] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
-
-    // Tab system state
-    const [activeTab, setActiveTab] = useState<"cuda" | "pytorch">("cuda");
 
     // Separate code storage for each tab
     const [generatedCudaCode, setGeneratedCudaCode] = useState<string>("");
@@ -729,35 +730,38 @@ def get_init_inputs():
                     {generatedCudaCode || generatedPytorchCode ? (
                         <div className="h-full flex flex-col">
                             <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                                <h3 className="text-sm font-semibold text-gray-900">
-                                    Generated Kernel
-                                </h3>
+                                {/* Left side: Title + Tab Switches */}
+                                <div className="flex items-center gap-4">
+                                    <h3 className="text-sm font-semibold text-gray-900">
+                                        Generated Kernel
+                                    </h3>
 
-                                {/* Tab Switches */}
-                                <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                                    <button
-                                        onClick={() => setActiveTab("cuda")}
-                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                            activeTab === "cuda"
-                                                ? "bg-white text-gray-900 shadow-sm"
-                                                : "text-gray-600 hover:text-gray-900"
-                                        }`}
-                                    >
-                                        CUDA
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveTab("pytorch")}
-                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                            activeTab === "pytorch"
-                                                ? "bg-white text-gray-900 shadow-sm"
-                                                : "text-gray-600 hover:text-gray-900"
-                                        }`}
-                                    >
-                                        PyTorch
-                                    </button>
+                                    {/* Tab Switches - Fixed on left */}
+                                    <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                                        <button
+                                            onClick={() => setActiveTab("cuda")}
+                                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                                activeTab === "cuda"
+                                                    ? "bg-white text-gray-900 shadow-sm"
+                                                    : "text-gray-600 hover:text-gray-900"
+                                            }`}
+                                        >
+                                            CUDA
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab("pytorch")}
+                                            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                                activeTab === "pytorch"
+                                                    ? "bg-white text-gray-900 shadow-sm"
+                                                    : "text-gray-600 hover:text-gray-900"
+                                            }`}
+                                        >
+                                            PyTorch
+                                        </button>
+                                    </div>
                                 </div>
 
-                                {/* Action Buttons */}
+                                {/* Right side: Action Buttons */}
                                 <div className="flex items-center gap-2">
                                     {isCompiling && (
                                         <div className="flex items-center text-xs text-blue-600">
@@ -858,8 +862,9 @@ def get_init_inputs():
                                     <div className="flex items-center">
                                         <div className="w-4 h-4 text-yellow-500 mr-2">⚠️</div>
                                         <span className="text-sm text-yellow-700">
-                                            {activeTab === "cuda" ? "CUDA" : "PyTorch"} compilation
-                                            unavailable - Generate button still works
+                                            {activeTab === "pytorch"
+                                                ? "PyTorch CUDA extension compilation is temporarily disabled while we fix compilation issues. You can still generate and view code."
+                                                : "Compilation is currently unavailable for this backend - Generate button still works"}
                                         </span>
                                     </div>
                                 </div>
