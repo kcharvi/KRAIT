@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "message": "CUDA kernel execution successful",
+  "execution_time": 50.0,
+  "gpu_utilization": 85.0,
+  "memory_usage": 108,
+  "throughput": 0.0,
+  "total_flops": 0,
+  "bound_type": "compute_bound",
+  "vectorization": "enabled",
+  "optimizations": [
+    "shared_memory",
+    "coalesced_access"
+  ],
+  "provider": "colab",
+  "timestamp": 1758430192.2749147,
+  "hardware": "NVIDIA T4",
+  "kernel_name": "conv2d_kernel",
+  "kernel_parameters": {
+    "height": 224,
+    "width": 0,
+    "channels": 3,
+    "kernel_size": 3
+  },
+  "performance_score": 0,
+  "corrected_code": "#define BLOCK_SIZE 16\n#include <cuda_runtime.h>\n#include <stdio.h>\n\n\n__global__ void conv2d_kernel(const float* input, const float* weight, const float* bias, float* output, int in_channels, int out_channels, int in_height, int in_width, int kernel_size) {\n    int out_channel = blockIdx.x * blockDim.x + threadIdx.x;\n    int out_height = blockIdx.y * blockDim.y + threadIdx.y;\n\n    if (out_channel >= out_channels || out_height >= in_height - kernel_size + 1) return;\n\n    int out_width;\n    for (out_width = 0; out_width < in_width - kernel_size + 1; ++out_width) {\n        float sum = bias[out_channel];\n        for (int k = 0; k < kernel_size; ++k) {\n            for (int l = 0; l < kernel_size; ++l) {\n                for (int c = 0; c < in_channels; ++c) {\n                    int input_index = (out_height + k) * in_width * in_channels + (out_width + l) * in_channels + c;\n                    int weight_index = out_channel * in_channels * kernel_size * kernel_size + k * kernel_size * in_channels + l * in_channels + c;\n                    sum += input[input_index] * weight[weight_index];\n                }\n            }\n        }\n        int output_index = out_channel * (in_height - kernel_size + 1) * (in_width - kernel_size + 1) + out_height * (in_width - kernel_size + 1) + out_width;\n        output[output_index] = sum;\n    }\n}\n\n\nint main() {\n    // Example parameters\n    int in_channels = 3;\n    int out_channels = 16;\n    int in_height = 224;\n    int in_width = 224;\n    int kernel_size = 3;\n\n    // Input/output sizes\n    int input_size = in_channels * in_height * in_width * sizeof(float);\n    int output_size = out_channels * (in_height - kernel_size + 1) * (in_width - kernel_size + 1) * sizeof(float);\n    int weight_size = out_channels * in_channels * kernel_size * kernel_size * sizeof(float);\n    int bias_size = out_channels * sizeof(float);\n\n\n    // Allocate host memory\n    float* h_input = (float*)malloc(input_size);\n    float* h_output = (float*)malloc(output_size);\n    float* h_weight = (float*)malloc(weight_size);\n    float* h_bias = (float*)malloc(bias_size);\n\n    // Initialize host memory (replace with your actual data)\n    for (int i = 0; i < input_size / sizeof(float); ++i) h_input[i] = (float)i;\n    for (int i = 0; i < weight_size / sizeof(float); ++i) h_weight[i] = (float)(i + 1);\n    for (int i = 0; i < bias_size / sizeof(float); ++i) h_bias[i] = (float)(i + 2);\n\n    // Allocate device memory\n    float* d_input;\n    float* d_output;\n    float* d_weight;\n    float* d_bias;\n\n    cudaMalloc((void**)&d_input, input_size);\n    cudaMalloc((void**)&d_output, output_size);\n    cudaMalloc((void**)&d_weight, weight_size);\n    cudaMalloc((void**)&d_bias, bias_size);\n\n\n    // Copy data to device\n    cudaMemcpy(d_input, h_input, input_size, cudaMemcpyHostToDevice);\n    cudaMemcpy(d_weight, h_weight, weight_size, cudaMemcpyHostToDevice);\n    cudaMemcpy(d_bias, h_bias, bias_size, cudaMemcpyHostToDevice);\n\n    // Launch kernel\n    dim3 blockDim(BLOCK_SIZE, BLOCK_SIZE);\n    dim3 gridDim((out_channels + blockDim.x - 1) / blockDim.x, (in_height - kernel_size + 1 + blockDim.y - 1) / blockDim.y);\n    conv2d_kernel<<<gridDim, blockDim>>>(d_input, d_weight, d_bias, d_output, in_channels, out_channels, in_height, in_width, kernel_size);\n\n\n    // Copy results back to host\n    cudaMemcpy(h_output, d_output, output_size, cudaMemcpyDeviceToHost);\n\n    // Print results (first few elements)\n    printf(\"First few output elements:\\n\");\n    for (int i = 0; i < 10; ++i) {\n        printf(\"%f \", h_output[i]);\n    }\n    printf(\"\\n\");\n\n    // Clean up memory\n    free(h_input);\n    free(h_output);\n    free(h_weight);\n    free(h_bias);\n    cudaFree(d_input);\n    cudaFree(d_output);\n    cudaFree(d_weight);\n    cudaFree(d_bias);\n\n    cudaDeviceReset(); //Good practice to reset device before exit\n    return 0;\n}",
+  "warnings": "ptxas info: 0 bytes gmem\nptxas info: Compiling entry function for 'sm_75'\nptxas info: Used 32 registers, 356 bytes cmem[0]"
+}
