@@ -51,6 +51,48 @@ export default function KernelWorkbench() {
     const [compilationAttempts, setCompilationAttempts] = useState(0);
     const [maxCompilationAttempts] = useState(5);
 
+    // Custom problem state
+    const [customProblemCode, setCustomProblemCode] = useState<string>(`# Custom PyTorch Model Code
+# Replace this with your own PyTorch model code
+# Example: Matrix multiplication, convolution, reduction, etc.
+
+        import torch
+import torch.nn as nn
+
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+        # Initialize your model layers here
+        self.layer1 = nn.Linear(10, 64)
+        self.layer2 = nn.ReLU()
+        self.layer3 = nn.Linear(64, 1)
+
+    def forward(self, x):
+        # Put your model implementation here
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        return x
+
+# This is how functions below will be used during
+# validation and benchmarking
+# model = Model(*get_init_inputs())
+# output = model(*get_inputs())
+
+def get_inputs():
+    return [torch.randn(64, 10)]
+
+def get_init_inputs():
+    return []`);
+
+    // Create custom problem object
+    const customProblem: Problem = {
+        id: "custom",
+        name: "Custom Problem",
+        code: customProblemCode,
+        description: "Define your own custom PyTorch model problem",
+    };
+
     // Load sample problems from markdown files
     useEffect(() => {
         const loadProblems = async () => {
@@ -60,7 +102,7 @@ export default function KernelWorkbench() {
                 { id: "reduction", file: "reduction.mdx" },
             ];
 
-            const loadedProblems: Problem[] = [];
+            const loadedProblems: Problem[] = [customProblem]; // Start with custom problem
 
             for (const { id, file } of problemFiles) {
                 try {
@@ -87,8 +129,19 @@ export default function KernelWorkbench() {
         loadProblems();
     }, []);
 
+    // Update custom problem in problems array when customProblemCode changes
+    useEffect(() => {
+        setProblems((prevProblems) => {
+            const updatedProblems = prevProblems.map((problem) =>
+                problem.id === "custom" ? { ...problem, code: customProblemCode } : problem
+            );
+            return updatedProblems;
+        });
+    }, [customProblemCode]);
+
     const selectedProblemData = problems.find((p) => p.id === selectedProblem);
-    const currentCode = selectedProblemData?.code || "";
+    const currentCode =
+        selectedProblem === "custom" ? customProblemCode : selectedProblemData?.code || "";
 
     // Reset compilation state when problem changes (new problem = new compilation needed)
     useEffect(() => {
@@ -190,6 +243,13 @@ export default function KernelWorkbench() {
         setCompilationError("");
 
         await attemptCompilation();
+    };
+
+    const handleStopCompilation = () => {
+        setIsCompiling(false);
+        setCompilationStatus("idle");
+        setCompilationError("Compilation cancelled by user");
+        setCompilationAttempts(0);
     };
 
     const attemptCompilation = async () => {
@@ -398,10 +458,33 @@ export default function KernelWorkbench() {
 
                     {/* Code Block Display */}
                     {selectedProblem && currentCode && (
-                        <div className="bg-gray-900 rounded-lg p-3 h-24 overflow-y-auto">
-                            <pre className="text-xs text-green-400 font-mono leading-tight whitespace-pre">
-                                <code>{currentCode}</code>
-                            </pre>
+                        <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+                            {selectedProblem === "custom" ? (
+                                <div className="relative">
+                                    <textarea
+                                        value={customProblemCode}
+                                        onChange={(e) => setCustomProblemCode(e.target.value)}
+                                        className="w-full h-24 bg-gray-900 text-green-400 font-mono text-xs p-3 resize-none overflow-y-auto focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+                                        style={{
+                                            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                                            lineHeight: "1.4",
+                                            tabSize: 4,
+                                        }}
+                                        placeholder="Paste your custom PyTorch model code here..."
+                                    />
+                                    <div className="absolute top-1 right-1">
+                                        <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">
+                                            Editable
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="h-24 overflow-y-auto">
+                                    <pre className="text-xs text-green-400 font-mono leading-tight whitespace-pre p-3">
+                                        <code>{currentCode}</code>
+                                    </pre>
+                                </div>
+                            )}
                         </div>
                     )}
                     {selectedProblem && !currentCode && (
@@ -425,7 +508,7 @@ export default function KernelWorkbench() {
                             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                         />
                         <button
-                            className="px-4 py-2 flex items-center gap-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-24 px-4 py-2 flex items-center justify-center gap-2 rounded-lg bg-primary-500 hover:bg-primary-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Generate Kernel"
                             onClick={generateKernel}
                             disabled={
@@ -473,6 +556,48 @@ export default function KernelWorkbench() {
                                                 ❌ Compilation Failed
                                             </div>
                                         )}
+                                    {isCompiling ? (
+                                        <button
+                                            onClick={handleStopCompilation}
+                                            className="w-16 px-2 py-1 text-xs rounded text-white bg-red-500 hover:bg-red-600 flex items-center justify-center"
+                                            title="Stop compilation"
+                                        >
+                                            Stop
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleCompile}
+                                            disabled={
+                                                !generatedCode.trim() ||
+                                                isGenerating ||
+                                                !supportsCompilation
+                                            }
+                                            className={`w-16 px-2 py-1 text-xs rounded text-white flex items-center justify-center ${
+                                                !supportsCompilation
+                                                    ? "bg-gray-400 cursor-not-allowed"
+                                                    : compilationStatus === "success"
+                                                    ? "bg-green-500 hover:bg-green-600"
+                                                    : compilationStatus === "error" &&
+                                                      compilationAttempts >= maxCompilationAttempts
+                                                    ? "bg-red-500 hover:bg-red-600"
+                                                    : "bg-blue-500 hover:bg-blue-600"
+                                            } disabled:bg-gray-400 disabled:cursor-not-allowed`}
+                                            title={
+                                                !supportsCompilation
+                                                    ? "Currently unavailable for this backend"
+                                                    : ""
+                                            }
+                                        >
+                                            {!supportsCompilation
+                                                ? "🚫 Blocked"
+                                                : compilationStatus === "success"
+                                                ? "✅ Compiled"
+                                                : compilationStatus === "error" &&
+                                                  compilationAttempts >= maxCompilationAttempts
+                                                ? "❌ Failed"
+                                                : "Compile"}
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => {
                                             navigator.clipboard.writeText(generatedCode);
@@ -480,67 +605,26 @@ export default function KernelWorkbench() {
                                         }}
                                         className="px-2 py-1 text-xs bg-gray-200 hover:bg-gray-300 rounded text-gray-700"
                                     >
-                                        Copy
-                                    </button>
-                                    <button
-                                        onClick={handleCompile}
-                                        disabled={
-                                            !generatedCode.trim() ||
-                                            isCompiling ||
-                                            isGenerating ||
-                                            !supportsCompilation
-                                        }
-                                        className={`px-2 py-1 text-xs rounded text-white ${
-                                            !supportsCompilation
-                                                ? "bg-gray-400 cursor-not-allowed"
-                                                : compilationStatus === "success"
-                                                ? "bg-green-500 hover:bg-green-600"
-                                                : compilationStatus === "error" &&
-                                                  compilationAttempts >= maxCompilationAttempts
-                                                ? "bg-red-500 hover:bg-red-600"
-                                                : "bg-blue-500 hover:bg-blue-600"
-                                        } disabled:bg-gray-400 disabled:cursor-not-allowed`}
-                                        title={
-                                            !supportsCompilation
-                                                ? "Currently unavailable for this backend"
-                                                : ""
-                                        }
-                                    >
-                                        {!supportsCompilation
-                                            ? "🚫 Blocked"
-                                            : compilationStatus === "success"
-                                            ? "✅ Compiled"
-                                            : compilationStatus === "error" &&
-                                              compilationAttempts >= maxCompilationAttempts
-                                            ? "❌ Failed"
-                                            : isCompiling
-                                            ? "Compiling..."
-                                            : "Compile"}
+                                        Copy Code
                                     </button>
                                 </div>
                             </div>
-                            <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-700 min-h-0">
-                                <div className="h-full flex">
-                                    {/* Fixed line numbers */}
-                                    <div className="bg-gray-800 text-gray-500 text-sm font-mono leading-relaxed p-4 pr-2 flex-shrink-0">
-                                        {generatedCode.split("\n").map((_, index) => (
-                                            <div key={index} className="text-right w-8">
-                                                {index + 1}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {/* Scrollable code content */}
-                                    <div className="flex-1 overflow-auto">
-                                        <pre className="text-sm text-green-400 font-mono leading-relaxed p-4 pl-2 whitespace-pre min-w-full">
-                                            <code>
-                                                {generatedCode.split("\n").map((line, index) => (
-                                                    <div key={index} className="hover:bg-gray-800">
-                                                        {line}
-                                                    </div>
-                                                ))}
-                                            </code>
-                                        </pre>
-                                    </div>
+                            <div className="flex-1 bg-gray-900 rounded-lg overflow-hidden border border-gray-700 min-h-0 relative">
+                                <textarea
+                                    value={generatedCode}
+                                    onChange={(e) => setGeneratedCode(e.target.value)}
+                                    className="w-full h-full text-sm text-green-400 font-mono leading-relaxed p-4 bg-transparent border-none outline-none resize-none overflow-y-auto"
+                                    style={{
+                                        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+                                        lineHeight: "1.6",
+                                        tabSize: 4,
+                                    }}
+                                    spellCheck={false}
+                                />
+                                <div className="absolute top-2 right-2">
+                                    <span className="text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded border border-gray-600">
+                                        Editable
+                                    </span>
                                 </div>
                             </div>
                             {!supportsCompilation && (
