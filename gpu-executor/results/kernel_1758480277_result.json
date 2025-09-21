@@ -14,7 +14,7 @@
     "coalesced_access"
   ],
   "provider": "colab",
-  "timestamp": 1758481213.3226423,
+  "timestamp": 1758481248.2499871,
   "hardware": "Tesla T4",
   "kernel_name": "matrixMultiplyKernel",
   "kernel_parameters": {
