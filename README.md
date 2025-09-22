@@ -2,6 +2,16 @@
 
 An advanced GPU kernel analysis and optimization platform that combines static code analysis with AI-powered insights to help developers write better, more efficient GPU kernels. KRAIT provides comprehensive correctness checking, performance analysis, and intelligent suggestions for CUDA, Triton, and OpenCL kernels.
 
+## 🎥 Demo Video
+
+https://github.com/yourusername/KRAIT/assets/demo.mp4
+
+<video width="100%" controls>
+  <source src="./assets/demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+
 ## 🚀 Features
 
 ### Core Analysis Capabilities
