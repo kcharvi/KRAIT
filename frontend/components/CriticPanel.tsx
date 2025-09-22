@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import {
-    CheckCircle,
     AlertTriangle,
-    XCircle,
-    Info,
-    Loader2,
+    CheckCircle,
     ChevronDown,
     ChevronRight,
     Copy,
     Download,
+    Info,
+    Loader2,
     RefreshCw,
+    Search,
+    XCircle,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 interface AnalysisResult {
     analysis_id: string;
@@ -63,7 +64,7 @@ interface CriticPanelProps {
     isAnalyzing: boolean;
     compilationStatus: "idle" | "compiling" | "success" | "error";
     onAnalysisComplete?: (result: AnalysisResult) => void;
-    onCodeFixed?: (fixedCode: string) => void; // Add this callback
+    onCodeFixed?: (fixedCode: string) => void;
 }
 
 export default function CriticPanel({
@@ -71,7 +72,6 @@ export default function CriticPanel({
     activeTab = "cuda",
     hardware,
     backend,
-    isAnalyzing,
     compilationStatus,
     onAnalysisComplete,
     onCodeFixed,
@@ -89,21 +89,16 @@ export default function CriticPanel({
     const [isTypeSafetyLlmAnalyzing, setIsTypeSafetyLlmAnalyzing] = useState(false);
     const [typeSafetyLlmError, setTypeSafetyLlmError] = useState<string | null>(null);
 
-    // GPU execution state
     const [realMetrics, setRealMetrics] = useState<any>(null);
     const [isExecuting, setIsExecuting] = useState(false);
     const [executionProvider, setExecutionProvider] = useState("github_colab");
     const [executionError, setExecutionError] = useState<string | null>(null);
 
-    // Execution error fixing state
     const [isFixingExecution, setIsFixingExecution] = useState(false);
     const [executionFixAttempts, setExecutionFixAttempts] = useState(0);
     const [maxExecutionFixAttempts] = useState(3);
 
-    // Debug: Track analysisResult changes
-    useEffect(() => {
-        console.log("analysisResult state changed:", analysisResult);
-    }, [analysisResult]);
+    useEffect(() => {}, [analysisResult]);
 
     const analyzeKernel = async () => {
         if (!kernelCode.trim()) return;
@@ -134,7 +129,6 @@ export default function CriticPanel({
             }
 
             const result = await response.json();
-            console.log("Analysis result received:", result);
             console.log("Analysis result structure:", {
                 hasCorrectness: !!result.correctness,
                 hasPerformance: !!result.performance,
@@ -142,11 +136,7 @@ export default function CriticPanel({
                 correctnessIssues: result.correctness?.issues?.length || 0,
                 overallScore: result.overall_score,
             });
-            console.log("Correctness checks:", result.correctness?.checks);
-            console.log("Correctness issues:", result.correctness?.issues);
-            console.log("Setting analysis result...");
             setAnalysisResult(result);
-            console.log("Analysis result set, calling onAnalysisComplete");
             onAnalysisComplete?.(result);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Analysis failed");
@@ -176,7 +166,7 @@ export default function CriticPanel({
             case "skip":
                 return <Info className="w-4 h-4 text-gray-400" />;
             default:
-                return null; // Don't show icon for unknown status
+                return null;
         }
     };
 
@@ -191,7 +181,7 @@ export default function CriticPanel({
             case "low":
                 return <CheckCircle className="w-4 h-4 text-green-500" />;
             default:
-                return null; // Don't show icon for unknown severity
+                return null;
         }
     };
 
@@ -207,19 +197,6 @@ export default function CriticPanel({
                 return "bg-green-50 border-green-200 text-green-800";
             default:
                 return "bg-gray-50 border-gray-200 text-gray-800";
-        }
-    };
-
-    const getCorrectnessStatusColor = (status: string) => {
-        switch (status) {
-            case "likely_correct":
-                return "text-green-600";
-            case "potential_issues":
-                return "text-yellow-600";
-            case "failed_checks":
-                return "text-red-600";
-            default:
-                return "text-gray-600";
         }
     };
 
@@ -256,9 +233,6 @@ export default function CriticPanel({
             }
 
             const result = await response.json();
-            console.log("LLM Analysis result received:", result);
-            console.log("LLM Analysis results:", result.analysis_results);
-            console.log("LLM Suggestions:", result.suggestions);
             setLlmAnalysisResults(result);
             setLlmAnalysisError(null);
         } catch (err) {
@@ -297,7 +271,6 @@ export default function CriticPanel({
             }
 
             const result = await response.json();
-            console.log("Type Safety LLM Analysis result received:", result);
             setTypeSafetyLlmResults(result);
             setTypeSafetyLlmError(null);
         } catch (err) {
@@ -309,15 +282,10 @@ export default function CriticPanel({
         }
     };
 
-    // Execution error fixing function
     const fixExecutionError = async (error: string) => {
         if (!kernelCode.trim() || !onCodeFixed) return;
 
         const currentAttempt = executionFixAttempts + 1;
-        console.log(
-            `🔧 Attempting to fix execution error (attempt ${currentAttempt}/${maxExecutionFixAttempts})`
-        );
-
         setIsFixingExecution(true);
         setExecutionError(error);
 
@@ -334,7 +302,7 @@ export default function CriticPanel({
                         execution_error: error,
                         hardware,
                         backend,
-                        problem_name: "Unknown", // You'll need to pass this from parent
+                        problem_name: "Unknown",
                         user_prompt: "Fix execution error",
                     }),
                 }
@@ -345,21 +313,15 @@ export default function CriticPanel({
             }
 
             const result = await response.json();
-            console.log("🔍 Execution fix result:", result);
 
             if (result.success) {
-                // Update the kernel code with fixed version
                 onCodeFixed(result.fixed_code);
                 setExecutionFixAttempts(currentAttempt);
                 setExecutionError("");
-                console.log("🔧 Execution error fixed, code updated");
-
-                // Reset execution state to allow retry
                 setRealMetrics(null);
                 setIsExecuting(false);
             } else {
                 setExecutionError(result.error || "Failed to fix execution error");
-                console.log("❌ Failed to fix execution error:", result.error);
             }
         } catch (error) {
             console.error("Execution error fixing failed:", error);
@@ -375,7 +337,7 @@ export default function CriticPanel({
             return;
         }
 
-        console.log("🚀 Starting GPU execution...", {
+        console.log("Starting GPU execution...", {
             kernelLength: kernelCode.length,
             hardware,
             provider: executionProvider,
@@ -386,23 +348,18 @@ export default function CriticPanel({
         setExecutionError(null);
         setRealMetrics(null);
 
-        // Test backend connectivity first
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
-        console.log("🔍 Testing backend connectivity to:", backendUrl);
 
         try {
             const healthResponse = await fetch(`${backendUrl}/api/v1/health`, {
                 method: "GET",
-                signal: AbortSignal.timeout(5000), // 5 second timeout for health check
+                signal: AbortSignal.timeout(5000),
             });
-            console.log("✅ Backend health check:", healthResponse.status);
             if (healthResponse.ok) {
-                const healthData = await healthResponse.json();
-                console.log("✅ Backend health data:", healthData);
             }
         } catch (healthError) {
-            console.warn("⚠️ Backend health check failed:", healthError);
-            console.warn("⚠️ This might indicate the backend is not running or not accessible");
+            console.warn("Backend health check failed:", healthError);
+            console.warn("This might indicate the backend is not running or not accessible");
         }
 
         try {
@@ -410,38 +367,20 @@ export default function CriticPanel({
                 kernel_code: kernelCode,
                 hardware: hardware,
                 provider: executionProvider,
-                timeout: 600, // Increased to 10 minutes for GitHub-Colab cycle
+                timeout: 600,
             };
 
-            // Call backend directly instead of through Next.js API route
             const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
             const endpoint = `${backendUrl}/api/v1/gpu/execute-kernel`;
-
-            console.log("📤 Sending request to:", endpoint);
-            console.log("📤 Request body:", {
-                ...requestBody,
-                kernel_code: kernelCode.substring(0, 100) + "...",
-            });
-
-            console.log("⏳ Waiting for response... (this may take several minutes)");
-
-            // Test if the endpoint is reachable with a simple OPTIONS request
             try {
-                const optionsResponse = await fetch(endpoint, {
-                    method: "OPTIONS",
-                    signal: AbortSignal.timeout(10000), // 10 second timeout
-                });
-                console.log("✅ Endpoint reachable, OPTIONS response:", optionsResponse.status);
             } catch (optionsError) {
-                console.warn("⚠️ Endpoint might not be reachable:", optionsError);
+                console.warn("Endpoint might not be reachable:", optionsError);
             }
 
-            // Create an AbortController for timeout handling
             const controller = new AbortController();
             const timeoutId = setTimeout(() => {
                 controller.abort();
-                console.log("⏰ Request timed out after 10 minutes");
-            }, 600000); // 10 minutes timeout
+            }, 600000);
 
             const response = await fetch(endpoint, {
                 method: "POST",
@@ -450,20 +389,11 @@ export default function CriticPanel({
                 signal: controller.signal,
             });
 
-            // Clear timeout if request completes
             clearTimeout(timeoutId);
-
-            console.log("📊 Response status:", response.status);
-            console.log("📊 Response headers:", Object.fromEntries(response.headers.entries()));
-            console.log("📊 Response ok:", response.ok);
-
             if (!response.ok) {
                 let errorData;
                 try {
                     const responseText = await response.text();
-                    console.log("❌ Error response text:", responseText);
-
-                    // Check if it's HTML (like a 404 page)
                     if (responseText.includes("<!DOCTYPE") || responseText.includes("<html")) {
                         throw new Error(
                             `Backend server not running or endpoint not found (${response.status}). Please ensure the backend is running on port 8000.`
@@ -472,7 +402,7 @@ export default function CriticPanel({
 
                     errorData = JSON.parse(responseText);
                 } catch (parseError) {
-                    console.error("❌ Failed to parse error response:", parseError);
+                    console.error("Failed to parse error response:", parseError);
                     throw new Error(
                         `HTTP error! status: ${response.status}. Response was not valid JSON.`
                     );
@@ -484,24 +414,12 @@ export default function CriticPanel({
             }
 
             const result = await response.json();
-            console.log("✅ GPU execution result:", result);
-            console.log("📊 Result success:", result.success);
-            console.log("📊 Result metrics:", result.metrics);
-            console.log("📊 Result error:", result.error);
-            console.log("📊 Result provider:", result.provider);
-
             if (result.success) {
-                console.log("🎉 GPU execution successful! Setting metrics...");
                 setRealMetrics(result.metrics);
                 setExecutionError(null);
-                setExecutionFixAttempts(0); // Reset fix attempts on success
-                console.log("✅ Metrics set successfully");
+                setExecutionFixAttempts(0);
 
-                // Update kernel code with corrected version if available
                 if (result.metrics?.corrected_code) {
-                    console.log("✅ Updating kernel code with corrected version");
-                    // Note: This would need to be passed up to parent component
-                    // For now, we'll just log it
                     console.log(
                         "Corrected code available:",
                         result.metrics.corrected_code.substring(0, 100) + "..."
@@ -509,20 +427,18 @@ export default function CriticPanel({
                 }
             } else {
                 const errorMsg = result.error || "GPU execution failed";
-                console.error("❌ GPU execution failed:", errorMsg);
+                console.error("GPU execution failed:", errorMsg);
                 setExecutionError(errorMsg);
 
-                // Check if this is an execution error that can be fixed
                 if (
                     errorMsg.includes("CUDA error") &&
                     executionFixAttempts < maxExecutionFixAttempts
                 ) {
-                    console.log("🔧 Execution error detected, attempting to fix...");
                     await fixExecutionError(errorMsg);
                 }
             }
         } catch (error) {
-            console.error("💥 GPU execution error:", error);
+            console.error("GPU execution error:", error);
             let errorMessage = "GPU execution failed";
 
             if (error instanceof Error) {
@@ -539,7 +455,6 @@ export default function CriticPanel({
             setExecutionError(errorMessage);
         } finally {
             setIsExecuting(false);
-            console.log("🏁 GPU execution finished");
         }
     };
 
@@ -592,16 +507,16 @@ export default function CriticPanel({
     if (!analysisResult) {
         return (
             <div className="h-full flex flex-col bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
                     <h3 className="text-sm font-semibold text-gray-900">Critic and Analysis </h3>
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 flex items-center justify-center overflow-y-auto scrollbar-hide">
                     <div className="text-center">
                         <div className="mx-auto mb-4 h-10 w-10 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center">
-                            👁️
+                            <div className="mx-auto mb-4 h-10 w-10 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center">
+                                        <Search className="w-4 h-4" />
+                            </div>
                         </div>
                         <h2 className="text-gray-700 mb-2">Ready to Analyze</h2>
                         <p className="text-sm text-gray-500 mb-4">
@@ -633,7 +548,6 @@ export default function CriticPanel({
 
     return (
         <div className="h-full flex flex-col bg-gray-50 rounded-lg shadow-sm border border-gray-200 overflow-hidden min-h-0">
-            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 flex-shrink-0">
                 <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold text-gray-900">Critic and Analysis</h3>
@@ -656,9 +570,7 @@ export default function CriticPanel({
                 </div>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-y-auto scrollbar-hide min-h-0">
-                {/* Real GPU Execution Section */}
                 <div className="border-b border-gray-200">
                     <button
                         onClick={() => toggleSection("gpu_execution")}
@@ -673,7 +585,6 @@ export default function CriticPanel({
                     </button>
                     {expandedSections.has("gpu_execution") && (
                         <div className="px-4 pb-4">
-                            {/* Execution Controls */}
                             <div className="p-4 rounded-lg mb-4">
                                 <h4 className="font-medium text-blue-900 mb-3">
                                     Execute on Real GPU
@@ -693,7 +604,7 @@ export default function CriticPanel({
                                             isFixingExecution ||
                                             !kernelCode.trim() ||
                                             compilationStatus !== "success" ||
-                                            activeTab === "pytorch" // Block PyTorch execution
+                                            activeTab === "pytorch"
                                         }
                                         className="px-3 py-1 bg-blue-500 text-white rounded text-sm disabled:opacity-50 flex items-center gap-1"
                                     >
@@ -715,7 +626,6 @@ export default function CriticPanel({
                                         )}
                                     </button>
 
-                                    {/* Manual fix button for execution errors */}
                                     {executionError &&
                                         executionFixAttempts < maxExecutionFixAttempts &&
                                         !isFixingExecution && (
@@ -723,12 +633,11 @@ export default function CriticPanel({
                                                 onClick={() => fixExecutionError(executionError)}
                                                 className="px-3 py-1 bg-orange-500 text-white rounded text-sm hover:bg-orange-600 flex items-center gap-1"
                                             >
-                                                🔧 Fix Error
+                                                Fix Error
                                             </button>
                                         )}
                                 </div>
 
-                                {/* PyTorch execution warning */}
                                 {activeTab === "pytorch" && (
                                     <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
                                         <div className="flex items-center">
@@ -742,32 +651,30 @@ export default function CriticPanel({
                                     </div>
                                 )}
 
-                                {/* Side note */}
                                 <div className="text-xs text-gray-600 mt-2">
                                     {compilationStatus !== "success" ? (
                                         <span className="text-amber-600">
-                                            ⚠️ Kernel must be successfully compiled before execution
+                                            Kernel must be successfully compiled before execution
                                         </span>
                                     ) : (
                                         <span className="text-green-600">
-                                            ✅ Ready to execute on real GPU hardware
+                                            Ready to execute on real GPU hardware
                                         </span>
                                     )}
                                 </div>
 
                                 {executionError && (
                                     <div className="text-red-600 text-sm mb-2">
-                                        ❌ {executionError}
+                                        {executionError}
                                     </div>
                                 )}
                             </div>
 
-                            {/* Results Display */}
                             {!realMetrics ? (
                                 <div className="text-center py-8 text-gray-500">
                                     <div className="text-sm">No GPU execution data available</div>
                                     <div className="text-xs mt-1">
-                                        Click "Run on GPU" above to execute the kernel
+                                        Click Run on GPU above to execute the kernel
                                     </div>
                                 </div>
                             ) : (
@@ -845,7 +752,6 @@ export default function CriticPanel({
                     )}
                 </div>
 
-                {/* Performance Section */}
                 <div className="border-b border-gray-200">
                     <button
                         onClick={() => toggleSection("performance")}
@@ -869,7 +775,6 @@ export default function CriticPanel({
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {/* Memory Usage */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="p-3 bg-blue-50 rounded-lg">
                                             <div className="text-sm font-medium text-blue-700">
@@ -2312,7 +2217,7 @@ export default function CriticPanel({
                                                                                                                             <input
                                                                                                                                 type="checkbox"
                                                                                                                                 className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                                                                                                                                onChange={() => {}} // Add state management if needed
+                                                                                                                                onChange={() => {}}
                                                                                                                             />
                                                                                                                             <span className="text-sm text-green-700 flex-1">
                                                                                                                                 {
@@ -2333,7 +2238,6 @@ export default function CriticPanel({
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    // Generic dump for other checks
                                                                     <pre className="bg-gray-50 border border-gray-200 rounded p-2 overflow-auto text-xs text-gray-700">
                                                                         <code>
                                                                             {JSON.stringify(
@@ -2363,7 +2267,6 @@ export default function CriticPanel({
                     )}
                 </div>
 
-                {/* Suggestions Section */}
                 <div className="border-b border-gray-200">
                     <button
                         onClick={() => toggleSection("suggestions")}

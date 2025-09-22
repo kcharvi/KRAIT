@@ -1,38 +1,30 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Code} from "lucide-react";
 import { Problem, parseProblemMDX } from "../utils/parseMDX";
 import CriticPanel from "./CriticPanel";
 
 export default function KernelWorkbench() {
     const [backend, setBackend] = useState("CUDA");
     const [hardware, setHardware] = useState("NVIDIA T4");
-
-    // Tab system state
     const [activeTab, setActiveTab] = useState<"cuda" | "pytorch">("cuda");
-
-    // Define which backends support compilation and execution
-    // Block PyTorch CUDA extensions until compilation issues are resolved
     const supportsCompilation = backend === "CUDA" && activeTab === "cuda";
     const supportsExecution = backend === "CUDA" && activeTab === "cuda";
 
-    // Define supported hardware for each backend
     const getSupportedHardware = (backend: string) => {
         switch (backend) {
             case "CUDA":
                 return ["NVIDIA T4", "CPU"];
             case "Triton":
             case "OpenCL":
-                return ["NVIDIA T4", "CPU"]; // Same options but compilation blocked
+                return ["NVIDIA T4", "CPU"]; 
             default:
                 return ["NVIDIA T4", "CPU"];
         }
     };
 
     const supportedHardware = getSupportedHardware(backend);
-
-    // Auto-switch hardware when backend changes if current hardware is not supported
     useEffect(() => {
         if (!supportedHardware.includes(hardware)) {
             setHardware(supportedHardware[0]);
@@ -47,14 +39,8 @@ export default function KernelWorkbench() {
     const [isLoadingProblems, setIsLoadingProblems] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
 
-    // Separate code storage for each tab
-    const [generatedCudaCode, setGeneratedCudaCode] = useState<string>("");
     const [generatedPytorchCode, setGeneratedPytorchCode] = useState<string>("");
-
-    // Backward compatibility - keep generatedCode for CriticPanel
     const [generatedCode, setGeneratedCode] = useState<string>("");
-
-    // Separate compilation states for each tab
     const [cudaCompilationStatus, setCudaCompilationStatus] = useState<
         "idle" | "compiling" | "success" | "error"
     >("idle");
@@ -68,7 +54,6 @@ export default function KernelWorkbench() {
     const [cudaCompilationAttempts, setCudaCompilationAttempts] = useState(0);
     const [pytorchCompilationAttempts, setPytorchCompilationAttempts] = useState(0);
 
-    // Legacy states for backward compatibility
     const [isCompiling, setIsCompiling] = useState(false);
     const [compilationStatus, setCompilationStatus] = useState<
         "idle" | "compiling" | "success" | "error"
@@ -78,7 +63,6 @@ export default function KernelWorkbench() {
 
     const [maxCompilationAttempts] = useState(5);
 
-    // Custom problem state
     const [customProblemCode, setCustomProblemCode] = useState<string>(`# Custom PyTorch Model Code
 # Replace this with your own PyTorch model code
 # Example: Matrix multiplication, convolution, reduction, etc.
@@ -112,7 +96,6 @@ def get_inputs():
 def get_init_inputs():
     return []`);
 
-    // Create custom problem object
     const customProblem: Problem = {
         id: "custom",
         name: "Custom Problem",
@@ -120,7 +103,6 @@ def get_init_inputs():
         description: "Define your own custom PyTorch model problem",
     };
 
-    // Load sample problems from markdown files
     useEffect(() => {
         const loadProblems = async () => {
             const problemFiles = [
@@ -129,7 +111,7 @@ def get_init_inputs():
                 { id: "reduction", file: "reduction.mdx" },
             ];
 
-            const loadedProblems: Problem[] = [customProblem]; // Start with custom problem
+            const loadedProblems: Problem[] = [customProblem]; 
 
             for (const { id, file } of problemFiles) {
                 try {
@@ -156,7 +138,6 @@ def get_init_inputs():
         loadProblems();
     }, []);
 
-    // Update custom problem in problems array when customProblemCode changes
     useEffect(() => {
         setProblems((prevProblems) => {
             const updatedProblems = prevProblems.map((problem) =>
@@ -170,9 +151,8 @@ def get_init_inputs():
     const currentCode =
         selectedProblem === "custom" ? customProblemCode : selectedProblemData?.code || "";
 
-    // Helper functions for tab management
     const getCurrentCode = () => {
-        return activeTab === "cuda" ? generatedCudaCode : generatedPytorchCode;
+        return activeTab === "cuda" ? generatedCode : generatedPytorchCode;
     };
 
     const getCurrentCompilationStatus = () => {
@@ -189,11 +169,10 @@ def get_init_inputs():
 
     const setCurrentCode = (code: string) => {
         if (activeTab === "cuda") {
-            setGeneratedCudaCode(code);
+            setGeneratedCode(code);
         } else {
             setGeneratedPytorchCode(code);
         }
-        // Also update the legacy generatedCode for CriticPanel
         setGeneratedCode(code);
     };
 
@@ -209,10 +188,8 @@ def get_init_inputs():
         }
     };
 
-    // Reset compilation state when problem changes (new problem = new compilation needed)
     useEffect(() => {
         if (selectedProblem) {
-            // Reset both tabs
             setCudaCompilationStatus("idle");
             setCudaCompilationError("");
             setCudaCompilationAttempts(0);
@@ -220,14 +197,12 @@ def get_init_inputs():
             setPytorchCompilationError("");
             setPytorchCompilationAttempts(0);
 
-            // Reset legacy states
             setCompilationStatus("idle");
             setCompilationError("");
             setCompilationAttempts(0);
             setIsCompiling(false);
 
-            // Clear generated code when problem changes
-            setGeneratedCudaCode("");
+            setGeneratedCode("");
             setGeneratedPytorchCode("");
             setGeneratedCode("");
         }
@@ -244,11 +219,10 @@ def get_init_inputs():
         setIsGenerating(true);
 
         // Clear all generated code
-        setGeneratedCudaCode("");
+        setGeneratedCode("");
         setGeneratedPytorchCode("");
         setGeneratedCode("");
 
-        // Reset compilation state when generating new code
         resetCurrentCompilationState();
         setCompilationStatus("idle");
         setCompilationError("");
@@ -256,8 +230,6 @@ def get_init_inputs():
         setIsCompiling(false);
 
         try {
-            // Generate CUDA code
-            console.log("Generating CUDA code...");
             const cudaResponse = await fetch(
                 `${process.env.BACKEND_URL || "http://localhost:8000"}/api/v1/kernel/generate`,
                 {
@@ -287,10 +259,6 @@ def get_init_inputs():
             }
 
             const cudaData = await cudaResponse.json();
-            console.log("CUDA response:", cudaData);
-
-            // Generate PyTorch code
-            console.log("Generating PyTorch code...");
             const pytorchResponse = await fetch(
                 `${process.env.BACKEND_URL || "http://localhost:8000"}/api/v1/kernel/generate`,
                 {
@@ -320,13 +288,8 @@ def get_init_inputs():
             }
 
             const pytorchData = await pytorchResponse.json();
-            console.log("PyTorch response:", pytorchData);
 
-            // Set the generated codes
             if (cudaData.optimized_code) {
-                console.log("CUDA code received, updating display...");
-                setGeneratedCudaCode(cudaData.optimized_code);
-                // Set as default for CriticPanel
                 setGeneratedCode(cudaData.optimized_code);
             } else {
                 console.error("No CUDA code in response:", cudaData);
@@ -356,7 +319,6 @@ def get_init_inputs():
             return;
         }
 
-        // Reset attempts when starting fresh compilation
         if (activeTab === "cuda") {
             setCudaCompilationAttempts(0);
             setCudaCompilationStatus("compiling");
@@ -367,7 +329,6 @@ def get_init_inputs():
             setPytorchCompilationError("");
         }
 
-        // Also update legacy states for backward compatibility
         setCompilationAttempts(0);
         setIsCompiling(true);
         setCompilationStatus("compiling");
@@ -388,7 +349,6 @@ def get_init_inputs():
         const currentBackend = activeTab === "cuda" ? "CUDA" : "PYTORCH_CUDA_EXTENSION";
 
         try {
-            console.log(`🔨 Starting ${activeTab} compilation...`);
             const response = await fetch(
                 `${process.env.BACKEND_URL || "http://localhost:8000"}/api/v1/gpu/compile-kernel`,
                 {
@@ -412,7 +372,6 @@ def get_init_inputs():
             console.log("🔍 Compilation result:", result);
 
             if (result.success) {
-                // Update current tab's compilation status
                 if (activeTab === "cuda") {
                     setCudaCompilationStatus("success");
                     setCudaCompilationError("");
@@ -423,21 +382,16 @@ def get_init_inputs():
                     setPytorchCompilationAttempts(0);
                 }
 
-                // Update legacy states
                 setCompilationStatus("success");
                 setCompilationError("");
                 setCompilationAttempts(0);
-                console.log("✅ Compilation successful!");
 
-                // Update the generated code with the corrected version
                 if (result.corrected_code) {
                     setCurrentCode(result.corrected_code);
-                    console.log("✅ Code updated with corrected version");
                 }
 
                 setIsCompiling(false);
             } else {
-                // Update current tab's compilation status
                 if (activeTab === "cuda") {
                     setCudaCompilationStatus("error");
                     setCudaCompilationError(result.error || "Compilation failed");
@@ -446,24 +400,19 @@ def get_init_inputs():
                     setPytorchCompilationError(result.error || "Compilation failed");
                 }
 
-                // Update legacy states
                 setCompilationStatus("error");
                 setCompilationError(result.error || "Compilation failed");
-                console.log("❌ Compilation failed:", result.error);
 
-                // Try to fix the kernel with LLM if under limit
                 const currentAttempts = getCurrentCompilationAttempts();
                 if (currentAttempts < maxCompilationAttempts) {
                     await handleFixKernel(result.error);
                 } else {
-                    console.log("❌ Max attempts reached, stopping");
                     setIsCompiling(false);
                 }
             }
         } catch (error) {
             console.error("Compilation failed:", error);
 
-            // Update current tab's compilation status
             if (activeTab === "cuda") {
                 setCudaCompilationStatus("error");
                 setCudaCompilationError("Failed to compile kernel");
@@ -472,7 +421,6 @@ def get_init_inputs():
                 setPytorchCompilationError("Failed to compile kernel");
             }
 
-            // Update legacy states
             setCompilationStatus("error");
             setCompilationError("Failed to compile kernel");
             setIsCompiling(false);
@@ -483,10 +431,6 @@ def get_init_inputs():
         const currentCode = getCurrentCode();
         const currentBackend = activeTab === "cuda" ? "CUDA" : "PYTORCH_CUDA_EXTENSION";
         const currentAttempt = getCurrentCompilationAttempts() + 1;
-
-        console.log(
-            `🔧 Attempting to fix ${activeTab} kernel (attempt ${currentAttempt}/${maxCompilationAttempts})`
-        );
 
         try {
             const response = await fetch(
@@ -510,50 +454,39 @@ def get_init_inputs():
             }
 
             const result = await response.json();
-            console.log("🔍 Fix result:", result);
 
             if (result.success) {
                 setCurrentCode(result.fixed_code);
 
-                // Update current tab's compilation attempts
                 if (activeTab === "cuda") {
                     setCudaCompilationAttempts(currentAttempt);
                 } else {
                     setPytorchCompilationAttempts(currentAttempt);
                 }
 
-                // Update legacy state
                 setCompilationAttempts(currentAttempt);
-                console.log("🔧 Kernel fixed, retrying compilation...");
-
-                // Retry compilation with fixed code
                 setTimeout(() => {
                     attemptCompilation();
                 }, 1000);
             } else {
-                // Update current tab's compilation error
                 if (activeTab === "cuda") {
                     setCudaCompilationError(result.error || "Failed to fix kernel");
                 } else {
                     setPytorchCompilationError(result.error || "Failed to fix kernel");
                 }
 
-                // Update legacy state
                 setCompilationError(result.error || "Failed to fix kernel");
-                console.log("❌ Failed to fix kernel:", result.error);
                 setIsCompiling(false);
             }
         } catch (error) {
             console.error("Kernel fixing failed:", error);
 
-            // Update current tab's compilation error
             if (activeTab === "cuda") {
                 setCudaCompilationError("Failed to fix kernel");
             } else {
                 setPytorchCompilationError("Failed to fix kernel");
             }
 
-            // Update legacy state
             setCompilationError("Failed to fix kernel");
             setIsCompiling(false);
         }
@@ -561,9 +494,7 @@ def get_init_inputs():
 
     return (
         <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-1.5 p-1.5">
-            {/* Left column */}
             <div className="flex flex-col bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden h-full min-h-0">
-                {/* Sticky header with dropdowns */}
                 <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
                     <div className="flex items-center justify-between px-4 py-3">
                         <h3 className="text-sm font-semibold text-gray-900">Kernel Builder</h3>
@@ -573,12 +504,10 @@ def get_init_inputs():
                                 value={backend}
                                 onChange={(e) => {
                                     setBackend(e.target.value);
-                                    // Reset compilation state when backend changes
                                     setCompilationStatus("idle");
                                     setCompilationError("");
                                     setCompilationAttempts(0);
                                     setIsCompiling(false);
-                                    // Clear generated code when backend changes
                                     setGeneratedCode("");
                                 }}
                             >
@@ -591,12 +520,10 @@ def get_init_inputs():
                                 value={hardware}
                                 onChange={(e) => {
                                     setHardware(e.target.value);
-                                    // Reset compilation state when hardware changes
                                     setCompilationStatus("idle");
                                     setCompilationError("");
                                     setCompilationAttempts(0);
                                     setIsCompiling(false);
-                                    // Clear generated code when hardware changes
                                     setGeneratedCode("");
                                 }}
                             >
@@ -612,9 +539,7 @@ def get_init_inputs():
                     </div>
                 </div>
 
-                {/* Top prompt composer */}
                 <div className="border-b border-gray-200 p-4 space-y-4 flex-shrink-0">
-                    {/* Problem Selector Dropdown */}
                     <div className="relative">
                         <button
                             type="button"
@@ -654,7 +579,6 @@ def get_init_inputs():
                         )}
                     </div>
 
-                    {/* Code Block Display */}
                     {selectedProblem && currentCode && (
                         <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
                             {selectedProblem === "custom" ? (
@@ -696,7 +620,6 @@ def get_init_inputs():
                         </div>
                     )}
 
-                    {/* Prompt Input */}
                     <div className="flex items-center gap-2">
                         <input
                             type="text"
@@ -727,16 +650,14 @@ def get_init_inputs():
 
                 {/* Generated Code Display */}
                 <div className="flex-1 p-4 min-h-0">
-                    {generatedCudaCode || generatedPytorchCode ? (
+                    {generatedCode || generatedPytorchCode ? (
                         <div className="h-full flex flex-col">
                             <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                                {/* Left side: Title + Tab Switches */}
                                 <div className="flex items-center gap-4">
                                     <h3 className="text-sm font-semibold text-gray-900">
                                         Generated Kernel
                                     </h3>
 
-                                    {/* Tab Switches - Fixed on left */}
                                     <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                                         <button
                                             onClick={() => setActiveTab("cuda")}
@@ -761,7 +682,6 @@ def get_init_inputs():
                                     </div>
                                 </div>
 
-                                {/* Right side: Action Buttons */}
                                 <div className="flex items-center gap-2">
                                     {isCompiling && (
                                         <div className="flex items-center text-xs text-blue-600">
@@ -773,7 +693,7 @@ def get_init_inputs():
                                     {getCurrentCompilationStatus() === "success" && (
                                         <div className="flex items-center text-xs text-green-600">
                                             <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                                            ✅ Compiled Successfully
+                                            Compiled Successfully
                                         </div>
                                     )}
                                     {getCurrentCompilationStatus() === "error" &&
@@ -781,7 +701,7 @@ def get_init_inputs():
                                             maxCompilationAttempts && (
                                             <div className="flex items-center text-xs text-red-600">
                                                 <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
-                                                ❌ Compilation Failed
+                                                Compilation Failed
                                             </div>
                                         )}
                                     {isCompiling ? (
@@ -906,9 +826,9 @@ def get_init_inputs():
                         <div className="h-full flex items-center justify-center">
                             <div className="text-center">
                                 <div className="mx-auto mb-4 h-10 w-10 rounded-full bg-primary-50 text-primary-600 flex items-center justify-center">
-                                    ⚙️
+                                    <Code className="w-4 h-4" />
                                 </div>
-                                <h2 className="text-gray-700">Generate a kernel in 30 seconds</h2>
+                                <h2 className="text-gray-700">Generate a kernel</h2>
                                 <p className="text-sm text-gray-500 mt-2">
                                     Select a problem, configure settings, and click generate
                                 </p>
@@ -918,7 +838,6 @@ def get_init_inputs():
                 </div>
             </div>
 
-            {/* Right column - Critic Agent */}
             <div className="h-full min-h-0">
                 <CriticPanel
                     kernelCode={getCurrentCode()}
@@ -932,7 +851,6 @@ def get_init_inputs():
                     }}
                     onCodeFixed={(fixedCode) => {
                         setCurrentCode(fixedCode);
-                        // Reset compilation state since we have new code
                         resetCurrentCompilationState();
                         setCompilationStatus("idle");
                         setCompilationError("");

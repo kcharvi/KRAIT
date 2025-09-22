@@ -8,7 +8,6 @@ import MetricsDashboard from "@/components/MetricsDashboard";
 export default function Home() {
     const [activeTab, setActiveTab] = useState("kernel-workbench");
 
-    // Sample data for demonstration - moved outside to persist
     const sampleData = [
         {
             id: "1",
@@ -48,7 +47,6 @@ export default function Home() {
         <div className="h-screen flex flex-col">
             <TopNavigation activeTab={activeTab} onTabChange={setActiveTab} />
             <main className="flex-1 overflow-hidden">
-                {/* Render all components but only show the active one */}
                 <div className={`h-full ${activeTab === "kernel-workbench" ? "block" : "hidden"}`}>
                     <KernelWorkbench />
                 </div>

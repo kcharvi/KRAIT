@@ -34,8 +34,6 @@ export default function MetricsPage() {
             setLoading(true);
             setError(null);
 
-            // For now, generate sample data
-            // In a real implementation, this would fetch from your backend
             const sampleData: MetricsData[] = [
                 {
                     id: "1",
@@ -129,7 +127,6 @@ export default function MetricsPage() {
 
     const handleExport = (format: "csv" | "json") => {
         console.log(`Exporting data as ${format}`);
-        // Export functionality is handled by the MetricsTable component
     };
 
     if (loading) {

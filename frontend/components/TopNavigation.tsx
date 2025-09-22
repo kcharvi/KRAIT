@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, BarChart3, Cpu, Settings } from "lucide-react";
+import { ChevronDown, BarChart3, Cpu, Settings, Cog } from "lucide-react";
 
 interface TopNavigationProps {
     activeTab: string;
@@ -41,8 +41,8 @@ export default function TopNavigation({ activeTab, onTabChange }: TopNavigationP
                     {/* Logo/Brand */}
                     <div className="flex items-center">
                         <div className="flex-shrink-0 flex items-center">
-                            <div className="h-6 w-6 flex items-center justify-center bg-primary-600 text-white rounded">
-                                <span className="font-bold text-sm">⛎</span>
+                            <div className="h-6 w-6 flex items-center justify-center bg-indigo-600 text-white rounded">
+                                <Cog className="w-4 h-4 animate-spin" />
                             </div>
                             <span className="ml-2 text-lg font-bold text-gray-900">KRAIT</span>
                         </div>

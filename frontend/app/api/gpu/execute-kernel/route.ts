@@ -4,19 +4,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     
-    console.log('🚀 GPU Execution Request:', {
+    console.log('GPU Execution Request:', {
       kernel_code: body.kernel_code?.substring(0, 100) + '...',
       hardware: body.hardware,
       provider: body.provider,
       timestamp: new Date().toISOString()
     })
     
-    // Forward the request to your backend
     const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000'
     const endpoint = `${backendUrl}/api/v1/gpu/execute-kernel`
-    
-    console.log('📡 Calling backend:', endpoint)
-    
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -25,14 +21,11 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     })
 
-    console.log('📊 Backend response status:', response.status)
-    console.log('📊 Backend response headers:', Object.fromEntries(response.headers.entries()))
 
     if (!response.ok) {
       const errorText = await response.text()
       console.error('❌ Backend error response:', errorText)
       
-      // Check if it's an HTML error page (like 404 page)
       if (errorText.includes('<!DOCTYPE') || errorText.includes('<html')) {
         return NextResponse.json(
           { 
@@ -56,13 +49,12 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json()
-    console.log('✅ GPU execution successful:', data)
+    console.log('GPU execution successful:', data)
     
     return NextResponse.json(data)
   } catch (error) {
-    console.error('💥 GPU execution error:', error)
+    console.error('GPU execution error:', error)
     
-    // Enhanced error handling
     if (error instanceof TypeError && error.message.includes('fetch')) {
       return NextResponse.json(
         { 
