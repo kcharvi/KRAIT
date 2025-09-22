@@ -4,11 +4,10 @@ An advanced GPU kernel analysis and optimization platform that combines static c
 
 ## 🎥 Demo Video
 
-![KRAIT Demo GIF](./assets/krait-demo.gif)
+![KRAIT Demo GIF](./assets/KRAIT_Demo.gif)
 
-[![Watch the full demo on Veed.io](./assets/demo_poster.png)](https://www.veed.io/embed/ea9014c3-0182-433d-847b-5fe300958033")
+**Watch the full demo** to see KRAIT in action: https://www.veed.io/embed/ea9014c3-0182-433d-847b-5fe300958033
 
-**Watch the full demo** to see KRAIT in action:
 - AI-powered kernel generation and analysis
 - Real-time GPU execution on Google Colab
 - Interactive workbench with live suggestions
