@@ -227,85 +227,36 @@ curl -X POST "http://localhost:8000/gpu/execute-kernel" \
 - **Medium**: General improvements
 - **Low**: Minor optimizations
 
-## 🎯 Supported Hardware
+## 🎯 Supported Hardware 
 
-### NVIDIA GPUs
-- **Tesla T4**: Entry-level development and testing
-- **A100**: High-performance computing
-- **H100**: Latest generation with advanced features
-- **RTX Series**: Consumer and professional GPUs
+### ✅ **Fully Supported (Analysis + Execution)**
+- **NVIDIA T4**: Entry-level development and testing via Google Colab
+- **CPU**: Fallback option for analysis and testing
 
-### AMD GPUs
-- **MI300X**: High-performance data center GPU
-- **Radeon Series**: Consumer and professional GPUs
+### ⚠️ **Analysis Only (No Real Execution)**
+- **NVIDIA A100**: High-performance computing (analysis + specs)
+- **NVIDIA H100**: Latest generation with advanced features (analysis + specs)
+- **NVIDIA V100**: Data center GPU (analysis + specs)
+- **NVIDIA RTX 4090**: Consumer GPU (analysis + specs)
+- **AMD MI300X**: High-performance data center GPU (analysis + specs)
+- **AMD MI250X/MI200**: Data center GPUs (analysis + specs)
+
+*Real execution requires actual hardware access. Analysis works for all listed hardware.*
 
 ## 🔌 Supported Backends
 
-### CUDA
-- **CUDA C++**: Traditional CUDA kernel development
-- **CUDA Templates**: Generic programming support
-- **Tensor Cores**: Mixed-precision acceleration
+### ✅ **Fully Supported (Analysis + Execution)**
+- **CUDA C++**: Traditional CUDA kernel development with real GPU execution
+- **PyTorch CUDA**: Python-based CUDA extensions with real GPU execution
 
-### Triton
-- **Python-based**: High-level kernel development
-- **Automatic optimization**: Compiler-driven optimizations
-- **Multi-GPU support**: Distributed computing
+### ⚠️ **Analysis Only (No Real Execution)**
+- **Triton**: Python-based high-level kernel development (analysis + parsing)
+- **OpenCL**: Cross-platform multi-vendor GPU support (analysis + parsing)
 
-### OpenCL
-- **Cross-platform**: Multi-vendor GPU support
-- **C/C++ kernels**: Traditional OpenCL development
-- **Heterogeneous computing**: CPU and GPU integration
-
-## 🤝 Contributing
-
-1. **Fork the repository**
-2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
-3. **Commit your changes**: `git commit -m 'Add amazing feature'`
-4. **Push to the branch**: `git push origin feature/amazing-feature`
-5. **Open a Pull Request**
-
-## 📝 Development
-
-### Running Tests
-```bash
-# Backend tests
-cd backend
-pytest
-
-# Frontend tests
-cd frontend
-npm test
-```
-
-### Code Quality
-```bash
-# Backend linting
-cd backend
-black .
-flake8 .
-
-# Frontend linting
-cd frontend
-npm run lint
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Google Colab** for GPU execution infrastructure
-- **Google Gemini** for AI-powered analysis
-- **Hugging Face** for alternative AI models
-- **NVIDIA** for CUDA development tools
-- **OpenCL** community for cross-platform support
-
-## 📞 Support
-
-- **Issues**: [GitHub Issues](https://github.com/kcharvi/KRAIT/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/kcharvi/KRAIT/discussions)
-- **Documentation**: [Wiki](https://github.com/kcharvi/KRAIT/wiki)
+### 🔧 **Advanced Features (Analysis Only)**
+- **CUDA Templates**: Generic programming support (analysis)
+- **Tensor Cores**: Mixed-precision acceleration (analysis)
+- **Multi-GPU Triton**: Distributed computing (analysis)
 
 ## 🔄 Changelog
 
